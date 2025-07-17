@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI ChatBot App - Installation and Guide</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            margin-top: -15em;
+            text-align: center;
+            background-color: #fff;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #666666;
+            margin-bottom: 20px;
+        }
+
+        p {
+            font-size: 1.1em;
+            color: #555;
+            margin-bottom: 10px;
+            margin-top: 20px;
+        }
+
+        .cta-button {
+            background-color: #666666;
+            color: #fff;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background-color 0.3s ease;
+        }
+
+        .cta-button:hover {
+            background-color: #0c5bbf;
+        }
+
+        .cta-button:active {
+            background-color: #1a73e8;
+        }
+
+        .footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            text-align: left;
+            font-size: 1.1em;
+            color: #777;
+        }
+
+        .footer a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        .guide-section {
+            margin-left: 7%;
+            width: 40%;
+            text-align: left;
+            margin-top: 40px;
+            padding: 40px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .guide-section h2 {
+            color: #666666;
+            font-size: 1.7em;
+            margin-bottom: 15px;
+        }
+
+        .guide-section ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .guide-section li {
+            font-size: 1em;
+            color: #555;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Welcome to VT AI ChatBot!</h1>
+        <p>Enhance your Shopify store with our powerful **AI Chatbot App**. Improve customer support, boost engagement,
+            and
+            provide instant assistance to your visitors with our intelligent, easy-to-install chatbot solution.</p>
+
+        <!-- Install Button -->
+        <button id="redirectButton" class="cta-button">Get Started</button>
+    </div>
+
+    <!-- Guide Section -->
+    <div class="guide-section">
+        <h2>How to Install and Use the VT AI Chatbot App</h2>
+        <p>Follow the steps below to install and start using the AI Chatbot App on your Shopify store.</p>
+
+        <ul>
+            <li><strong>Step 1:</strong> Sign in to your Shopify store through the Admin Panel.</li>
+            <li><strong>Step 2:</strong> Click the "Get Started" button above to install the app.</li>
+            <li><strong>Step 3:</strong> Grant the necessary permissions for installation.</li>
+            <li><strong>Step 4:</strong> After installation, you will be redirected to the authentication page. Provide
+                your <strong>{{ shop.name }}</strong> store details for integration.</li>
+            <li><strong>Step 5:</strong> Go to the app settings and fill in the <strong>Email</strong> and
+                <strong>Website URL</strong> in the schema fields. This ensures proper chatbot configuration.
+            </li>
+            <li><strong>Step 6:</strong> Save the settings and the chatbot will automatically start appearing on your
+                storefront.</li>
+        </ul>
+
+        <p><strong>How the AI Chatbot Works:</strong></p>
+        <ul>
+            <li>Chatbot appears on all pages as a chat bubble in the bottom-right corner of your site.</li>
+            <li>It can answer customer questions instantly, 24/7, improving user experience.</li>
+            <li>You can configure and train the chatbot from the app dashboard using your business-specific content.
+            </li>
+            <li>The chatbot improves conversion rates by guiding customers through products and services.</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>Have questions? <a href="mailto:support@aichatbot.com">Contact us</a></p>
+    </div>
+
+    <script>
+        document.getElementById('redirectButton').addEventListener('click', function () {
+            const shopName = "{{ shop.name }}"; // Shopify Liquid variable to dynamically fetch shop name
+            // Redirect to the authentication URL with the shop parameter
+            window.location.href = `/auth?shop=${shopName}`; // Adjust the URL as per your app's requirements
+        });
+    </script>
+
+</body>
+
+</html>
