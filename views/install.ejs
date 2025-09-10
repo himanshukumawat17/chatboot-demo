@@ -161,7 +161,7 @@
 
     <script>
         document.getElementById('redirectButton').addEventListener('click', function () {
-            const shopName = "{{ shop.name }}"; // Shopify Liquid variable to dynamically fetch shop name
+            const shopName = "https://admin.shopify.com/"; // Shopify Liquid variable to dynamically fetch shop name
             // Redirect to the authentication URL with the shop parameter
             window.location.href = `/auth?shop=${shopName}`; // Adjust the URL as per your app's requirements
         });
