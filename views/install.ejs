@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI ChatBot App - Installation and Guide</title>
+    <title>ConvexAI - Conversational AI ChatBot - Installation and Guide</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -114,19 +114,18 @@
 <body>
 
     <div class="container">
-        <h1>Welcome to VT AI ChatBot!</h1>
-        <p>Enhance your Shopify store with our powerful <strong>AI Chatbot App</strong>. Improve customer support, boost
-            engagement,
-            and provide instant assistance to your visitors with our intelligent, easy-to-install chatbot solution.</p>
+        <h1>Welcome to convexAI Conversational AI Chatbot App!</h1>
+        <p>Enhance your Shopify store with our powerful convexAI Conversational AI Chatbot app. Improve navigation,
+            boost user engagement, and
+            provide a seamless shopping experience with our easy-to-install solution.</p>
 
         <!-- Install Button -->
         <button id="redirectButton" class="cta-button">Get Started</button>
     </div>
-
     <!-- Guide Section -->
     <div class="guide-section">
-        <h2>How to Install and Use the VT AI Chatbot App</h2>
-        <p>Follow the steps below to install and activate the AI Chatbot App on your Shopify store.</p>
+        <h2>How to Install and Use the convexAI Conversational AI Chatbot App</h2>
+        <p>Follow the steps below to install and start using the AI Chatbot App on your Shopify store.</p>
 
         <ul>
             <li><strong>Step 1:</strong> Sign in to your Shopify store through the Admin Panel.</li>
@@ -134,15 +133,8 @@
             <li><strong>Step 3:</strong> Grant the necessary permissions for installation.</li>
             <li><strong>Step 4:</strong> After installation, you will be redirected to the authentication page. Provide
                 your <strong>{{ shop.name }}</strong> store details for integration.</li>
-            <li><strong>Step 5:</strong> Go to <strong>Online Store → Customize</strong> and enable the chatbot
-                extension.</li>
-            <li><strong>Step 6:</strong> Inside the app settings, fill in your <strong>Email</strong> and
-                <strong>Website URL</strong> to configure the chatbot.
-            </li>
-            <li><strong>Step 7:</strong> A popup will appear on your storefront — click the button inside it to enable
-                the AI Chatbot.</li>
-            <li><strong>Step 8:</strong> After the chatbot is enabled, go back to <strong>Customize</strong> and disable
-                the popup to avoid it appearing again.</li>
+            <li><strong>Step 5:</strong> Configure and Train your AI Chatbot settings through the app's dashboard.</li>
+            <li><strong>Step 6:</strong> Customize the appearance, enable workflows, and save the changes.</li>
         </ul>
 
         <p><strong>How the AI Chatbot Works:</strong></p>
@@ -161,7 +153,7 @@
 
     <script>
         document.getElementById('redirectButton').addEventListener('click', function () {
-            const shopName = "{{ shop.name }}"; // Shopify Liquid variable to dynamically fetch shop name
+            const shopName = "admin.shopify.com"; // Shopify Liquid variable to dynamically fetch shop name
             // Redirect to the authentication URL with the shop parameter
             window.location.href = `/auth?shop=${shopName}`; // Adjust the URL as per your app's requirements
         });
