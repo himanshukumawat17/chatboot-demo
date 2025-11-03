@@ -12,7 +12,7 @@ const port = process.env.PORT || 10026
 // Set up the OAuth constants
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET
-const SHOPIFY_SCOPE = 'read_products,write_orders' // Adjust the scopes as needed
+const SHOPIFY_SCOPE = 'read_products,write_orders,read_themes,write_themes'
 const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI
 
 app.use(cors())
