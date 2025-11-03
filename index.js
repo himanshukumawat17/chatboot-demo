@@ -134,88 +134,78 @@ app.get('/auth/callback', async (req, res) => {
     )
 
     const accessToken = tokenResponse.data.access_token
-
     console.log(`Access Token for ${shop}: ${accessToken}`)
 
-    // Step 2: Get the main (published) theme
+    // Step 2: Get the active theme
     const themesResponse = await axios.get(
-      `https://${shop}/admin/api/2024-07/themes.json`,
+      `https://${shop}/admin/api/2023-10/themes.json`,
       {
         headers: {
           'X-Shopify-Access-Token': accessToken
         }
       }
     )
+    console.log(accessToken, 'accessTokenaccessTokenaccessToken')
 
-    const mainTheme = themesResponse.data.themes.find(
+    const activeTheme = themesResponse.data.themes.find(
       theme => theme.role === 'main'
     )
+    console.log(activeTheme, 'activeThemeactiveThemeactiveTheme')
 
-    if (mainTheme) {
-      const themeId = mainTheme.id
-
-      // Step 3: Fetch settings_data.json
-      const settingsResponse = await axios.get(
-        `https://${shop}/admin/api/2024-07/themes/${themeId}/assets.json?asset[key]=config/settings_data.json`,
-        {
-          headers: {
-            'X-Shopify-Access-Token': accessToken
-          }
-        }
-      )
-
-      const settingsJson = JSON.parse(settingsResponse.data.asset.value)
-
-      // Step 4: Enable your app embed block
-      const appEmbedId = 'chatbot' // change this to your actual embed block ID
-
-      if (
-        settingsJson.current &&
-        settingsJson.current.blocks &&
-        settingsJson.current.blocks[appEmbedId]
-      ) {
-        settingsJson.current.blocks[appEmbedId].disabled = false
-        console.log('✅ App embed found and enabled!')
-      } else {
-        // fallback: try to enable all your app-related blocks
-        for (const key in settingsJson.current.blocks) {
-          if (key.includes('chatbot') || key.includes('convexai')) {
-            settingsJson.current.blocks[key].disabled = false
-            console.log(`✅ Enabled block: ${key}`)
-          }
-        }
-      }
-
-      // Step 5: Upload updated settings_data.json
-      await axios.put(
-        `https://${shop}/admin/api/2024-07/themes/${themeId}/assets.json`,
-        {
-          asset: {
-            key: 'config/settings_data.json',
-            value: JSON.stringify(settingsJson, null, 2)
-          }
-        },
-        {
-          headers: {
-            'X-Shopify-Access-Token': accessToken
-          }
-        }
-      )
-
-      console.log('🎉 App embed successfully enabled in theme!')
-    } else {
-      console.log('⚠️ No main theme found for this store.')
+    if (!activeTheme) {
+      return res.status(404).send('No active theme found')
     }
 
-    // Step 6: Redirect merchant to Theme Editor (or your app dashboard)
+    console.log(`Active theme ID: ${activeTheme.id}`)
+
+    // Step 3: Get the current settings_data.json
+    const assetResponse = await axios.get(
+      `https://${shop}/admin/api/2023-10/themes/${activeTheme.id}/assets.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken
+        },
+        params: {
+          asset: { key: 'config/settings_data.json' }
+        }
+      }
+    )
+
+    let settingsData = JSON.parse(assetResponse.data.asset.value)
+    console.log(settingsData, 'settingsDatasettingsDatasettingsData')
+
+    // Step 4: Modify the setting
+    // Ensure your theme actually has this structure or setting
+    settingsData.current.disable = false // 👈 change this based on your theme's schema
+
+    // Step 5: Update the settings_data.json file
+    await axios.put(
+      `https://${shop}/admin/api/2023-10/themes/${activeTheme.id}/assets.json`,
+      {
+        asset: {
+          key: 'config/settings_data.json',
+          value: JSON.stringify(settingsData, null, 2)
+        }
+      },
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json'
+        }
+      }
+    )
+
+    console.log('✅ settings_data.json updated successfully!')
+
+    // Step 6: Redirect to the theme editor
     const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
     res.redirect(redirectUrl)
   } catch (error) {
     console.error(
-      '❌ Error during app installation:',
+      '❌ Error during callback or updating theme:',
       error.response?.data || error.message
     )
-    res.status(500).send('Failed to install app')
+    res.status(500).send('Failed to install app or update settings')
   }
 })
 
