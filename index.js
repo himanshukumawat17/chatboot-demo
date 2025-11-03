@@ -123,7 +123,7 @@ app.get('/auth/callback', async (req, res) => {
   }
 
   try {
-    // Exchange authorization code for access token
+    // Step 1: Exchange authorization code for access token
     const tokenResponse = await axios.post(
       `https://${shop}/admin/oauth/access_token`,
       {
@@ -135,15 +135,86 @@ app.get('/auth/callback', async (req, res) => {
 
     const accessToken = tokenResponse.data.access_token
 
-    // Store access token securely (e.g., in database)
     console.log(`Access Token for ${shop}: ${accessToken}`)
 
+    // Step 2: Get the main (published) theme
+    const themesResponse = await axios.get(
+      `https://${shop}/admin/api/2024-07/themes.json`,
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken
+        }
+      }
+    )
+
+    const mainTheme = themesResponse.data.themes.find(
+      theme => theme.role === 'main'
+    )
+
+    if (mainTheme) {
+      const themeId = mainTheme.id
+
+      // Step 3: Fetch settings_data.json
+      const settingsResponse = await axios.get(
+        `https://${shop}/admin/api/2024-07/themes/${themeId}/assets.json?asset[key]=config/settings_data.json`,
+        {
+          headers: {
+            'X-Shopify-Access-Token': accessToken
+          }
+        }
+      )
+
+      const settingsJson = JSON.parse(settingsResponse.data.asset.value)
+
+      // Step 4: Enable your app embed block
+      const appEmbedId = 'chatbot' // change this to your actual embed block ID
+
+      if (
+        settingsJson.current &&
+        settingsJson.current.blocks &&
+        settingsJson.current.blocks[appEmbedId]
+      ) {
+        settingsJson.current.blocks[appEmbedId].disabled = false
+        console.log('✅ App embed found and enabled!')
+      } else {
+        // fallback: try to enable all your app-related blocks
+        for (const key in settingsJson.current.blocks) {
+          if (key.includes('chatbot') || key.includes('convexai')) {
+            settingsJson.current.blocks[key].disabled = false
+            console.log(`✅ Enabled block: ${key}`)
+          }
+        }
+      }
+
+      // Step 5: Upload updated settings_data.json
+      await axios.put(
+        `https://${shop}/admin/api/2024-07/themes/${themeId}/assets.json`,
+        {
+          asset: {
+            key: 'config/settings_data.json',
+            value: JSON.stringify(settingsJson, null, 2)
+          }
+        },
+        {
+          headers: {
+            'X-Shopify-Access-Token': accessToken
+          }
+        }
+      )
+
+      console.log('🎉 App embed successfully enabled in theme!')
+    } else {
+      console.log('⚠️ No main theme found for this store.')
+    }
+
+    // Step 6: Redirect merchant to Theme Editor (or your app dashboard)
     const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
     res.redirect(redirectUrl)
-
-    // res.send('App installed successfully');
   } catch (error) {
-    console.error('Error exchanging code for access token:', error)
+    console.error(
+      '❌ Error during app installation:',
+      error.response?.data || error.message
+    )
     res.status(500).send('Failed to install app')
   }
 })
