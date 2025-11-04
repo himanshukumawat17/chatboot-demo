@@ -115,6 +115,7 @@ app.get('/auth', (req, res) => {
 })
 
 // OAuth callback to handle the token exchange
+// OAuth callback to handle the token exchange
 app.get('/auth/callback', async (req, res) => {
   const { code, shop } = req.query
 
@@ -123,7 +124,7 @@ app.get('/auth/callback', async (req, res) => {
   }
 
   try {
-    // Exchange authorization code for access token
+    // 1️⃣ Exchange authorization code for access token
     const tokenResponse = await axios.post(
       `https://${shop}/admin/oauth/access_token`,
       {
@@ -136,60 +137,59 @@ app.get('/auth/callback', async (req, res) => {
     const accessToken = tokenResponse.data.access_token
     console.log(`✅ Access Token for ${shop}: ${accessToken}`)
 
-    // Get main (published) theme
-    const themeResponse = await axios.get(
-      `https://${shop}/admin/api/2024-10/themes.json`,
+    // 2️⃣ Get active theme
+    const themesResponse = await axios.get(
+      `https://${shop}/admin/api/2024-07/themes.json`,
       {
-        headers: { 'X-Shopify-Access-Token': accessToken }
+        headers: {
+          'X-Shopify-Access-Token': accessToken
+        }
       }
     )
 
-    const theme = themeResponse.data.themes.find(t => t.role === 'main')
-    if (!theme) throw new Error('No main theme found')
+    const mainTheme = themesResponse.data.themes.find(
+      theme => theme.role === 'main'
+    )
+    if (!mainTheme) {
+      console.error('❌ No main theme found')
+      return res.status(404).send('No main theme found')
+    }
 
-    const themeId = theme.id
-    console.log(`🧩 Found main theme: ${theme.name} (${themeId})`)
+    console.log(`🧩 Found main theme: ${mainTheme.name} (${mainTheme.id})`)
 
-    // --- ✅ Get settings_data.json ---
+    // 3️⃣ Fetch settings_data.json
     const settingsRes = await axios.get(
-      `https://${shop}/admin/api/2024-10/themes/${themeId}/assets.json`,
+      `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json?asset[key]=config/settings_data.json`,
       {
-        headers: { 'X-Shopify-Access-Token': accessToken },
-        params: { 'asset[key]': 'config/settings_data.json' }
+        headers: {
+          'X-Shopify-Access-Token': accessToken
+        }
       }
     )
 
     let settingsData = JSON.parse(settingsRes.data.asset.value)
 
-    // Ensure structure exists
-    if (!settingsData.current) settingsData.current = {}
+    // 4️⃣ Enable the app embed (update this key name if different)
+    // Usually it’s "app_embed_block.chatbot" or "app_embed_block.chatbot-block"
+    const embedKey = 'app_embed_block.chatbot'
+
     if (!settingsData.current.blocks) settingsData.current.blocks = {}
-    if (!settingsData.current.block_order) settingsData.current.block_order = []
 
-    // Define your block
-    const blockId = '3693381111320325491' // see explanation below
-    const blockType =
-      'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894'
-
-    // Add if not already present
-    if (!settingsData.current.blocks[blockId]) {
-      settingsData.current.blocks[blockId] = {
-        type: blockType,
-        disabled: false,
-        settings: {
-          website_url: '',
-          email_id: ''
-        }
-      }
-      settingsData.current.block_order.push(blockId)
-      console.log('✅ Chatbot block added to settings_data.json')
-    } else {
-      console.log('ℹ️ Chatbot block already exists.')
+    settingsData.current.blocks[embedKey] = {
+      type: embedKey,
+      disabled: false
     }
 
-    // Upload updated settings
+    // Some themes use `settings` instead of `current`
+    if (settingsData.current && settingsData.current.block_order) {
+      if (!settingsData.current.block_order.includes(embedKey)) {
+        settingsData.current.block_order.push(embedKey)
+      }
+    }
+
+    // 5️⃣ Save back the modified settings
     await axios.put(
-      `https://${shop}/admin/api/2024-10/themes/${themeId}/assets.json`,
+      `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`,
       {
         asset: {
           key: 'config/settings_data.json',
@@ -198,23 +198,22 @@ app.get('/auth/callback', async (req, res) => {
       },
       {
         headers: {
-          'X-Shopify-Access-Token': accessToken,
-          'Content-Type': 'application/json'
+          'X-Shopify-Access-Token': accessToken
         }
       }
     )
 
-    console.log('✅ Default chatbot block added successfully')
+    console.log('✅ Chatbot app embed enabled automatically.')
 
-    // Redirect to theme editor
-    const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
-    return res.redirect(redirectUrl)
+    // 6️⃣ Redirect to the theme editor so merchant can see it live
+    const redirectUrl = `https://${shop}/admin/themes/${mainTheme.id}/editor?context=apps`
+    res.redirect(redirectUrl)
   } catch (error) {
     console.error(
       '❌ Error in /auth/callback:',
       error.response?.data || error.message
     )
-    return res.status(500).send('Failed to install app')
+    res.status(500).send('Failed to install app')
   }
 })
 
