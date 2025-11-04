@@ -115,91 +115,59 @@ app.get('/auth', (req, res) => {
 })
 
 // OAuth callback to handle the token exchange
-app.get('/auth/callback', async (req, res) => {
-  const { code, shop } = req.query
-
-  if (!code || !shop) {
-    return res.status(400).send('Missing code or shop parameter')
+// Get settings_data.json
+const settingsRes = await axios.get(
+  `https://${shop}/admin/api/2024-10/themes/${themeId}/assets.json`,
+  {
+    headers: { 'X-Shopify-Access-Token': accessToken },
+    params: { 'asset[key]': 'config/settings_data.json' }
   }
+)
 
-  try {
-    const tokenResponse = await axios.post(
-      `https://${shop}/admin/oauth/access_token`,
-      {
-        client_id: SHOPIFY_API_KEY,
-        client_secret: SHOPIFY_API_SECRET,
-        code: code
-      }
-    )
+let settingsData = JSON.parse(settingsRes.data.asset.value)
 
-    const accessToken = tokenResponse.data.access_token
-    console.log(`✅ Access Token for ${shop}: ${accessToken}`)
+// Ensure structure exists
+if (!settingsData.current) settingsData.current = {}
+if (!settingsData.current.blocks) settingsData.current.blocks = {}
+if (!settingsData.current.block_order) settingsData.current.block_order = []
 
-    // Get main theme
-    const themeResponse = await axios.get(
-      `https://${shop}/admin/api/2024-10/themes.json`,
-      {
-        headers: { 'X-Shopify-Access-Token': accessToken }
-      }
-    )
+// Define your block
+const blockId = '3693381111320325491'
+const blockType =
+  'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894'
 
-    const theme = themeResponse.data.themes.find(t => t.role === 'main')
-    if (!theme) throw new Error('No main theme found')
-
-    const themeId = theme.id
-    console.log(`🧩 Found main theme: ${theme.name} (${themeId})`)
-
-    // ✅ FIX: Correct query format for fetching the asset
-    const settingsRes = await axios.get(
-      `https://${shop}/admin/api/2024-10/themes/${themeId}/assets.json`,
-      {
-        headers: { 'X-Shopify-Access-Token': accessToken },
-        params: { 'asset[key]': 'config/settings_data.json' }
-      }
-    )
-
-    let settingsData = JSON.parse(settingsRes.data.asset.value)
-
-    const blockId = '3693381111320325491'
-    const blockType =
-      'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894'
-
-    if (!settingsData.blocks) settingsData.blocks = {}
-    if (!settingsData.blocks[blockId]) {
-      settingsData.blocks[blockId] = {
-        type: blockType,
-        disabled: false,
-        settings: {
-          website_url: '',
-          email_id: ''
-        }
-      }
+// Add if not already present
+if (!settingsData.current.blocks[blockId]) {
+  settingsData.current.blocks[blockId] = {
+    type: blockType,
+    disabled: false,
+    settings: {
+      website_url: '',
+      email_id: ''
     }
-
-    await axios.put(
-      `https://${shop}/admin/api/2024-10/themes/${themeId}/assets.json`,
-      {
-        asset: {
-          key: 'config/settings_data.json',
-          value: JSON.stringify(settingsData, null, 2)
-        }
-      },
-      {
-        headers: { 'X-Shopify-Access-Token': accessToken }
-      }
-    )
-
-    console.log('✅ Default chatbot block added successfully')
-
-    res.redirect(`https://${shop}/admin/themes/current/editor?context=apps`)
-  } catch (error) {
-    console.error(
-      '❌ Error in /auth/callback:',
-      error.response?.data || error.message
-    )
-    res.status(500).send('Failed to install app')
   }
-})
+  settingsData.current.block_order.push(blockId)
+  console.log('✅ Chatbot block added to settings_data.json')
+} else {
+  console.log('ℹ️ Chatbot block already exists.')
+}
+
+// Upload updated settings
+await axios.put(
+  `https://${shop}/admin/api/2024-10/themes/${themeId}/assets.json`,
+  {
+    asset: {
+      key: 'config/settings_data.json',
+      value: JSON.stringify(settingsData, null, 2)
+    }
+  },
+  {
+    headers: {
+      'X-Shopify-Access-Token': accessToken,
+      'Content-Type': 'application/json'
+    }
+  }
+)
 
 // Start the server
 app.listen(port, () => {
