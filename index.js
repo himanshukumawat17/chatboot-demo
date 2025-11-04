@@ -135,7 +135,7 @@ app.get('/auth/callback', async (req, res) => {
     const accessToken = tokenRes.data.access_token
     console.log(`✅ Access Token for ${shop}: ${accessToken}`)
 
-    // === 2. Check granted scopes ===
+    // === 2. Optional: Check granted scopes ===
     const scopes = await axios.get(
       `https://${shop}/admin/oauth/access_scopes.json`,
       {
@@ -156,7 +156,7 @@ app.get('/auth/callback', async (req, res) => {
     if (!themes.length) return res.status(404).send('No themes found')
     console.log(`🧩 Found ${themes.length} theme(s)`)
 
-    // === 4. Loop through each theme and update settings_data.json ===
+    // === 4. Loop through each theme and update/create chatbot block ===
     for (const theme of themes) {
       try {
         console.log(`🔍 Processing theme ID: ${theme.id} (${theme.name})`)
@@ -173,21 +173,38 @@ app.get('/auth/callback', async (req, res) => {
         // Parse the settings JSON
         let settingsData = JSON.parse(assetRes.data.asset.value)
 
-        // ✅ Make sure blocks exist
-        if (settingsData.current && settingsData.current.blocks) {
-          const blocks = settingsData.current.blocks
+        // ✅ Ensure 'blocks' structure exists
+        if (!settingsData.current) settingsData.current = {}
+        if (!settingsData.current.blocks) settingsData.current.blocks = {}
 
-          // Loop through all blocks and disable your chatbot block
-          for (const blockId in blocks) {
-            const block = blocks[blockId]
-            if (
-              block.type ===
-              'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894'
-            ) {
-              block.disabled = false
-              console.log(`🟢 Block ${blockId} disabled`)
+        const blocks = settingsData.current.blocks
+
+        // === Chatbot block ID and structure ===
+        const chatbotBlockId = 'convex_ai_chatbot_block_1'
+        const chatbotBlockType =
+          'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894'
+
+        // Check if chatbot block already exists
+        let existingBlock = Object.entries(blocks).find(
+          ([, block]) => block.type === chatbotBlockType
+        )
+
+        if (existingBlock) {
+          // ✅ Already exists → ensure disabled = false
+          const [blockId, blockData] = existingBlock
+          blockData.disabled = false
+          console.log(`🟢 Existing chatbot block (${blockId}) re-enabled`)
+        } else {
+          // 🆕 Create new chatbot block
+          blocks[chatbotBlockId] = {
+            type: chatbotBlockType,
+            disabled: false,
+            settings: {
+              website_url: '',
+              email_id: 'example@example.com'
             }
           }
+          console.log(`✨ Created new chatbot block for theme ${theme.id}`)
         }
 
         // === 5. Save updated file ===
@@ -207,7 +224,7 @@ app.get('/auth/callback', async (req, res) => {
           }
         )
 
-        console.log(`✅ Updated settings for theme ID: ${theme.id}`)
+        console.log(`✅ Updated settings_data.json for theme ID: ${theme.id}`)
       } catch (themeErr) {
         console.warn(
           `⚠️ Skipped theme ID ${theme.id}:`,
