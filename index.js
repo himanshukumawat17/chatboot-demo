@@ -176,7 +176,7 @@ app.get('/auth/callback', async (req, res) => {
         if (!settingsData.current) settingsData.current = {}
 
         // ✅ Dynamically set disable = true
-        settingsData.current.disable = true
+        settingsData.current.disable = false
 
         // Update file
         await axios.put(
