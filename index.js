@@ -9,182 +9,67 @@ dotenv.config()
 const app = express()
 const port = process.env.PORT || 3000
 
-// Set up the OAuth constants
+// 🧩 Shopify OAuth constants
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET
-const SHOPIFY_SCOPE = 'read_products,write_orders' // Adjust the scopes as needed
+const SHOPIFY_SCOPE =
+  'read_themes,write_themes,read_products,write_products,read_script_tags,write_script_tags'
 const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI
 
 app.use(cors())
-
+app.use(express.static('public'))
+app.use(bodyParser.json())
 app.set('view engine', 'ejs')
 
-// Serve static files (if any, like stylesheets, images)
-app.use(express.static('public'))
+// 🧠 In-memory store (replace with DB later)
+let customerDataStore = {}
+let shopDataStore = {}
 
-app.use(bodyParser.json())
-
-// Sample data store (replace with a real database in production)
-let customerDataStore = {} // Stores customer data by customer_id
-let shopDataStore = {} // Stores shop data by shop_id
-
-// Endpoint for Customer Data Request
-app.post('/customer-data-request', (req, res) => {
-  const { customer_id, request_id } = req.body
-
-  if (!customer_id || !request_id) {
-    return res.status(400).json({ error: 'Missing customer_id or request_id' })
-  }
-
-  const customerData = customerDataStore[customer_id]
-
-  if (!customerData) {
-    return res.status(404).json({ error: 'Customer data not found' })
-  }
-
-  // Return customer data in the response (ensure this complies with data privacy rules)
-  return res.json({
-    request_id,
-    customer_id,
-    data: customerData
-  })
-})
-
-// Endpoint for Customer Data Erasure
-app.post('/customer-data-erasure', (req, res) => {
-  const { customer_id, request_id } = req.body
-
-  if (!customer_id || !request_id) {
-    return res.status(400).json({ error: 'Missing customer_id or request_id' })
-  }
-
-  const customerData = customerDataStore[customer_id]
-
-  if (!customerData) {
-    return res.status(404).json({ error: 'Customer data not found' })
-  }
-
-  // Erase customer data from the store (in production, this will interact with your DB)
-  delete customerDataStore[customer_id]
-
-  return res.json({
-    request_id,
-    customer_id,
-    status: 'Data erased successfully'
-  })
-})
-
-// Endpoint for Shop Data Erasure
-app.post('/shop-data-erasure', (req, res) => {
-  const { shop_id, request_id } = req.body
-
-  if (!shop_id || !request_id) {
-    return res.status(400).json({ error: 'Missing shop_id or request_id' })
-  }
-
-  const shopData = shopDataStore[shop_id]
-
-  if (!shopData) {
-    return res.status(404).json({ error: 'Shop data not found' })
-  }
-
-  // Erase shop data from the store (in production, this will interact with your DB)
-  delete shopDataStore[shop_id]
-
-  return res.json({
-    request_id,
-    shop_id,
-    status: 'Shop data erased successfully'
-  })
-})
-
-app.get('/', (req, res) => {
-  const shop = req.query.shop
-  res.render('install', {
-    title: 'My Home Page',
-    message: 'Welcome to Node.js with EJS!',
-    shopName: shop
-  })
-})
-
-// Home route to start the OAuth flow
-app.get('/auth', (req, res) => {
-  const shop = req.query.shop
-  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${SHOPIFY_API_KEY}&scope=${SHOPIFY_SCOPE}&redirect_uri=${SHOPIFY_REDIRECT_URI}`
-  res.redirect(installUrl)
-})
-
-// OAuth callback to handle the token exchange
-// OAuth callback to handle the token exchange
-app.get('/auth/callback', async (req, res) => {
-  const { code, shop } = req.query
-
-  if (!code || !shop) {
-    return res.status(400).send('Missing code or shop parameter')
-  }
-
+// ⚙️ Add chatbot block to theme
+async function addChatbotBlock (shop, accessToken) {
   try {
-    // 1️⃣ Exchange authorization code for access token
-    const tokenResponse = await axios.post(
-      `https://${shop}/admin/oauth/access_token`,
-      {
-        client_id: SHOPIFY_API_KEY,
-        client_secret: SHOPIFY_API_SECRET,
-        code: code
-      }
-    )
+    console.log(`✅ Access Token for ${shop}:`, accessToken)
 
-    const accessToken = tokenResponse.data.access_token
-    console.log(`✅ Access Token for ${shop}: ${accessToken}`)
-
-    // 2️⃣ Get active theme
+    // 1️⃣ Get all themes
     const themesResponse = await axios.get(
       `https://${shop}/admin/api/2024-07/themes.json`,
       {
-        headers: {
-          'X-Shopify-Access-Token': accessToken
-        }
+        headers: { 'X-Shopify-Access-Token': accessToken }
       }
     )
 
     const mainTheme = themesResponse.data.themes.find(
       theme => theme.role === 'main'
     )
-    if (!mainTheme) {
-      console.error('❌ No main theme found')
-      return res.status(404).send('No main theme found')
-    }
+    if (!mainTheme) throw new Error('No main theme found')
 
     console.log(`🧩 Found main theme: ${mainTheme.name} (${mainTheme.id})`)
 
-    // 3️⃣ Fetch settings_data.json
-    const settingsRes = await axios.get(
+    // 2️⃣ Fetch settings_data.json
+    const settingsResponse = await axios.get(
       `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json?asset[key]=config/settings_data.json`,
       {
-        headers: {
-          'X-Shopify-Access-Token': accessToken
-        }
+        headers: { 'X-Shopify-Access-Token': accessToken }
       }
     )
 
-    let settingsData = JSON.parse(settingsRes.data.asset.value)
+    const settingsData = JSON.parse(settingsResponse.data.asset.value)
 
-    // 4️⃣ Enable the app embed (update this key name if different)
-    // Usually it’s "app_embed_block.chatbot" or "app_embed_block.chatbot-block"
-    const embedKey = 'app_embed_block.chatbot'
+    // 3️⃣ Ensure chatbot block exists
+    const chatbotBlock = { type: 'chatbot', settings: {} }
 
-    if (!settingsData.current.blocks) settingsData.current.blocks = {}
-
-    settingsData.current.blocks[embedKey] = {
-      type: embedKey,
-      disabled: false
+    if (!settingsData.sections) settingsData.sections = {}
+    if (!settingsData.sections.chatbot) {
+      settingsData.sections.chatbot = chatbotBlock
+      console.log('✅ Chatbot block added to sections')
+    } else {
+      console.log('ℹ️ Chatbot block already exists')
     }
 
-    // Some themes use `settings` instead of `current`
-    if (settingsData.current && settingsData.current.block_order) {
-      if (!settingsData.current.block_order.includes(embedKey)) {
-        settingsData.current.block_order.push(embedKey)
-      }
+    // 4️⃣ Ensure it’s in order
+    if (!settingsData.order) settingsData.order = []
+    if (!settingsData.order.includes('chatbot')) {
+      settingsData.order.push('chatbot')
     }
 
     // 5️⃣ Save back the modified settings
@@ -198,15 +83,65 @@ app.get('/auth/callback', async (req, res) => {
       },
       {
         headers: {
+          'Content-Type': 'application/json',
           'X-Shopify-Access-Token': accessToken
         }
       }
     )
 
-    console.log('✅ Chatbot app embed enabled automatically.')
+    console.log('🎉 Chatbot block successfully added to theme!')
+  } catch (error) {
+    console.error(
+      '❌ Error adding chatbot block:',
+      error.response?.data || error.message
+    )
+  }
+}
 
-    // 6️⃣ Redirect to the theme editor so merchant can see it live
-    const redirectUrl = `https://${shop}/admin/themes/${mainTheme.id}/editor?context=apps`
+// 🏠 Home route (installation start)
+app.get('/', (req, res) => {
+  const shop = req.query.shop
+  res.render('install', {
+    title: 'Install My App',
+    message: 'Welcome to Shopify App!',
+    shopName: shop
+  })
+})
+
+// 🚀 Begin OAuth
+app.get('/auth', (req, res) => {
+  const shop = req.query.shop
+  if (!shop) return res.status(400).send('Missing shop parameter')
+
+  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${SHOPIFY_API_KEY}&scope=${SHOPIFY_SCOPE}&redirect_uri=${SHOPIFY_REDIRECT_URI}`
+  res.redirect(installUrl)
+})
+
+// 🧩 OAuth Callback
+app.get('/auth/callback', async (req, res) => {
+  const { code, shop } = req.query
+  if (!code || !shop)
+    return res.status(400).send('Missing code or shop parameter')
+
+  try {
+    // 1️⃣ Exchange code for access token
+    const tokenResponse = await axios.post(
+      `https://${shop}/admin/oauth/access_token`,
+      {
+        client_id: SHOPIFY_API_KEY,
+        client_secret: SHOPIFY_API_SECRET,
+        code: code
+      }
+    )
+
+    const accessToken = tokenResponse.data.access_token
+    console.log(`✅ Access Token for ${shop}: ${accessToken}`)
+
+    // 2️⃣ Automatically enable Chatbot
+    await addChatbotBlock(shop, accessToken)
+
+    // 3️⃣ Redirect to Shopify Theme Editor
+    const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
     res.redirect(redirectUrl)
   } catch (error) {
     console.error(
@@ -217,7 +152,38 @@ app.get('/auth/callback', async (req, res) => {
   }
 })
 
-// Start the server
+// 🧹 GDPR Endpoints (for compliance)
+app.post('/customer-data-request', (req, res) => {
+  const { customer_id, request_id } = req.body
+  if (!customer_id || !request_id)
+    return res.status(400).json({ error: 'Missing customer_id or request_id' })
+
+  const customerData = customerDataStore[customer_id]
+  if (!customerData)
+    return res.status(404).json({ error: 'Customer data not found' })
+
+  res.json({ request_id, customer_id, data: customerData })
+})
+
+app.post('/customer-data-erasure', (req, res) => {
+  const { customer_id, request_id } = req.body
+  if (!customer_id || !request_id)
+    return res.status(400).json({ error: 'Missing customer_id or request_id' })
+
+  delete customerDataStore[customer_id]
+  res.json({ request_id, customer_id, status: 'Data erased successfully' })
+})
+
+app.post('/shop-data-erasure', (req, res) => {
+  const { shop_id, request_id } = req.body
+  if (!shop_id || !request_id)
+    return res.status(400).json({ error: 'Missing shop_id or request_id' })
+
+  delete shopDataStore[shop_id]
+  res.json({ request_id, shop_id, status: 'Shop data erased successfully' })
+})
+
+// 🖥️ Start server
 app.listen(port, () => {
-  console.log(`App is listening on port ${port}`)
+  console.log(`🚀 App is running on port ${port}`)
 })
