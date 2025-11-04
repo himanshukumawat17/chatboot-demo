@@ -174,29 +174,39 @@ app.get('/auth/callback', async (req, res) => {
         let settingsData = JSON.parse(assetRes.data.asset.value)
 
         // ✅ Ensure 'blocks' structure exists
+        // ✅ Ensure 'sections' structure exists
         if (!settingsData.current) settingsData.current = {}
-        if (!settingsData.current.blocks) settingsData.current.blocks = {}
+        if (!settingsData.current.sections) settingsData.current.sections = {}
 
-        const blocks = settingsData.current.blocks
+        // Choose the main or first section
+        const sectionId =
+          Object.keys(settingsData.current.sections)[0] || 'main'
+        if (!settingsData.current.sections[sectionId]) {
+          settingsData.current.sections[sectionId] = {
+            type: 'main',
+            blocks: {},
+            block_order: []
+          }
+        }
 
-        // === Chatbot block ID and structure ===
+        const section = settingsData.current.sections[sectionId]
+
         const chatbotBlockId = 'convex_ai_chatbot_block_1'
         const chatbotBlockType =
           'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894'
 
-        // Check if chatbot block already exists
-        let existingBlock = Object.entries(blocks).find(
+        // Check if block already exists
+        const existingBlock = Object.entries(section.blocks || {}).find(
           ([, block]) => block.type === chatbotBlockType
         )
 
         if (existingBlock) {
-          // ✅ Already exists → ensure disabled = false
           const [blockId, blockData] = existingBlock
           blockData.disabled = false
           console.log(`🟢 Existing chatbot block (${blockId}) re-enabled`)
         } else {
-          // 🆕 Create new chatbot block
-          blocks[chatbotBlockId] = {
+          // 🆕 Create a new block and add it to the section
+          section.blocks[chatbotBlockId] = {
             type: chatbotBlockType,
             disabled: false,
             settings: {
@@ -204,7 +214,15 @@ app.get('/auth/callback', async (req, res) => {
               email_id: 'example@example.com'
             }
           }
-          console.log(`✨ Created new chatbot block for theme ${theme.id}`)
+
+          // Make sure it's added to the block order so Shopify shows it
+          if (!section.block_order.includes(chatbotBlockId)) {
+            section.block_order.push(chatbotBlockId)
+          }
+
+          console.log(
+            `✨ Created and enabled chatbot block in section "${sectionId}"`
+          )
         }
 
         // === 5. Save updated file ===
