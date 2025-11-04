@@ -117,68 +117,57 @@ app.get('/auth', (req, res) => {
 // OAuth callback to handle the token exchange
 app.get('/auth/callback', async (req, res) => {
   const { code, shop } = req.query
-
-  if (!code || !shop) {
+  if (!code || !shop)
     return res.status(400).send('Missing code or shop parameter')
-  }
 
   try {
-    // Step 1: Exchange authorization code for access token
-    const tokenResponse = await axios.post(
+    // Exchange code for access token
+    const tokenRes = await axios.post(
       `https://${shop}/admin/oauth/access_token`,
       {
         client_id: SHOPIFY_API_KEY,
         client_secret: SHOPIFY_API_SECRET,
-        code: code
+        code
       }
     )
 
-    const accessToken = tokenResponse.data.access_token
-    console.log(`Access Token for ${shop}: ${accessToken}`)
+    const accessToken = tokenRes.data.access_token
+    console.log(`✅ Access Token for ${shop}: ${accessToken}`)
 
-    // Step 2: Get the active theme
-    const themesResponse = await axios.get(
+    // Optional: check granted scopes
+    const scopes = await axios.get(
+      `https://${shop}/admin/oauth/access_scopes.json`,
+      {
+        headers: { 'X-Shopify-Access-Token': accessToken }
+      }
+    )
+    console.log('Granted Scopes:', scopes.data)
+
+    // Get active theme
+    const themeRes = await axios.get(
       `https://${shop}/admin/api/2023-10/themes.json`,
       {
-        headers: {
-          'X-Shopify-Access-Token': accessToken
-        }
+        headers: { 'X-Shopify-Access-Token': accessToken }
       }
     )
-    console.log(accessToken, 'accessTokenaccessTokenaccessToken')
-
-    const activeTheme = themesResponse.data.themes.find(
-      theme => theme.role === 'main'
-    )
-    console.log(activeTheme, 'activeThemeactiveThemeactiveTheme')
-
-    if (!activeTheme) {
-      return res.status(404).send('No active theme found')
-    }
+    const activeTheme = themeRes.data.themes.find(t => t.role === 'main')
+    if (!activeTheme) return res.status(404).send('No active theme found')
 
     console.log(`Active theme ID: ${activeTheme.id}`)
 
-    // Step 3: Get the current settings_data.json
-    const assetResponse = await axios.get(
+    // Fetch settings_data.json
+    const assetRes = await axios.get(
       `https://${shop}/admin/api/2023-10/themes/${activeTheme.id}/assets.json`,
       {
-        headers: {
-          'X-Shopify-Access-Token': accessToken
-        },
-        params: {
-          asset: { key: 'config/settings_data.json' }
-        }
+        headers: { 'X-Shopify-Access-Token': accessToken },
+        params: { 'asset[key]': 'config/settings_data.json' }
       }
     )
 
-    let settingsData = JSON.parse(assetResponse.data.asset.value)
-    console.log(settingsData, 'settingsDatasettingsDatasettingsData')
+    let settingsData = JSON.parse(assetRes.data.asset.value)
+    settingsData.test_flag = 'updated via API' // Example change
 
-    // Step 4: Modify the setting
-    // Ensure your theme actually has this structure or setting
-    settingsData.current.disable = false // 👈 change this based on your theme's schema
-
-    // Step 5: Update the settings_data.json file
+    // Update settings_data.json
     await axios.put(
       `https://${shop}/admin/api/2023-10/themes/${activeTheme.id}/assets.json`,
       {
@@ -196,10 +185,7 @@ app.get('/auth/callback', async (req, res) => {
     )
 
     console.log('✅ settings_data.json updated successfully!')
-
-    // Step 6: Redirect to the theme editor
-    const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
-    res.redirect(redirectUrl)
+    res.redirect(`https://${shop}/admin/themes/current/editor?context=apps`)
   } catch (error) {
     console.error(
       '❌ Error during callback or updating theme:',
