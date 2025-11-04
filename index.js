@@ -121,7 +121,7 @@ app.get('/auth/callback', async (req, res) => {
     return res.status(400).send('Missing code or shop parameter')
 
   try {
-    // Exchange code for access token
+    // === 1. Exchange authorization code for access token ===
     const tokenRes = await axios.post(
       `https://${shop}/admin/oauth/access_token`,
       {
@@ -134,7 +134,7 @@ app.get('/auth/callback', async (req, res) => {
     const accessToken = tokenRes.data.access_token
     console.log(`✅ Access Token for ${shop}: ${accessToken}`)
 
-    // Optional: check granted scopes
+    // === 2. Optional: Check granted scopes ===
     const scopes = await axios.get(
       `https://${shop}/admin/oauth/access_scopes.json`,
       {
@@ -143,52 +143,73 @@ app.get('/auth/callback', async (req, res) => {
     )
     console.log('Granted Scopes:', scopes.data)
 
-    // Get active theme
-    const themeRes = await axios.get(
+    // === 3. Get all themes ===
+    const themesRes = await axios.get(
       `https://${shop}/admin/api/2023-10/themes.json`,
       {
         headers: { 'X-Shopify-Access-Token': accessToken }
       }
     )
-    const activeTheme = themeRes.data.themes.find(t => t.role === 'main')
-    if (!activeTheme) return res.status(404).send('No active theme found')
 
-    console.log(`Active theme ID: ${activeTheme.id}`)
+    const themes = themesRes.data.themes || []
+    if (!themes.length) return res.status(404).send('No themes found')
+    console.log(`🧩 Found ${themes.length} theme(s)`)
 
-    // Fetch settings_data.json
-    const assetRes = await axios.get(
-      `https://${shop}/admin/api/2023-10/themes/${activeTheme.id}/assets.json`,
-      {
-        headers: { 'X-Shopify-Access-Token': accessToken },
-        params: { 'asset[key]': 'config/settings_data.json' }
+    // === 4. Loop through each theme and update settings_data.json ===
+    for (const theme of themes) {
+      try {
+        console.log(`🔍 Processing theme ID: ${theme.id} (${theme.name})`)
+
+        // Get settings_data.json
+        const assetRes = await axios.get(
+          `https://${shop}/admin/api/2023-10/themes/${theme.id}/assets.json`,
+          {
+            headers: { 'X-Shopify-Access-Token': accessToken },
+            params: { 'asset[key]': 'config/settings_data.json' }
+          }
+        )
+
+        // Parse settings JSON
+        let settingsData = JSON.parse(assetRes.data.asset.value)
+
+        // Ensure the field exists or create it
+        if (!settingsData.current) settingsData.current = {}
+
+        // ✅ Dynamically set disable = true
+        settingsData.current.disable = true
+
+        // Update file
+        await axios.put(
+          `https://${shop}/admin/api/2023-10/themes/${theme.id}/assets.json`,
+          {
+            asset: {
+              key: 'config/settings_data.json',
+              value: JSON.stringify(settingsData, null, 2)
+            }
+          },
+          {
+            headers: {
+              'X-Shopify-Access-Token': accessToken,
+              'Content-Type': 'application/json'
+            }
+          }
+        )
+
+        console.log(`✅ Updated disable=true for theme ID: ${theme.id}`)
+      } catch (themeErr) {
+        // Gracefully handle missing file or errors per theme
+        console.warn(
+          `⚠️ Skipped theme ID ${theme.id}:`,
+          themeErr.response?.data?.errors || themeErr.message
+        )
       }
-    )
+    }
 
-    let settingsData = JSON.parse(assetRes.data.asset.value)
-    settingsData.test_flag = 'updated via API' // Example change
-
-    // Update settings_data.json
-    await axios.put(
-      `https://${shop}/admin/api/2023-10/themes/${activeTheme.id}/assets.json`,
-      {
-        asset: {
-          key: 'config/settings_data.json',
-          value: JSON.stringify(settingsData, null, 2)
-        }
-      },
-      {
-        headers: {
-          'X-Shopify-Access-Token': accessToken,
-          'Content-Type': 'application/json'
-        }
-      }
-    )
-
-    console.log('✅ settings_data.json updated successfully!')
+    // === 5. Redirect to admin after all updates ===
     res.redirect(`https://${shop}/admin/themes/current/editor?context=apps`)
   } catch (error) {
     console.error(
-      '❌ Error during callback or updating theme:',
+      '❌ Error during callback or updating themes:',
       error.response?.data || error.message
     )
     res.status(500).send('Failed to install app or update settings')
