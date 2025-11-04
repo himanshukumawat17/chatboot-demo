@@ -134,16 +134,64 @@ app.get('/auth/callback', async (req, res) => {
     )
 
     const accessToken = tokenResponse.data.access_token
-
-    // Store access token securely (e.g., in database)
     console.log(`Access Token for ${shop}: ${accessToken}`)
 
+    // ✅ Get active theme
+    const themes = await axios.get(
+      `https://${shop}/admin/api/2024-10/themes.json`,
+      {
+        headers: { 'X-Shopify-Access-Token': accessToken }
+      }
+    )
+    const activeTheme = themes.data.themes.find(t => t.role === 'main')
+
+    // ✅ Get settings_data.json
+    const settingsResponse = await axios.get(
+      `https://${shop}/admin/api/2024-10/themes/${activeTheme.id}/assets.json?asset[key]=config/settings_data.json`,
+      {
+        headers: { 'X-Shopify-Access-Token': accessToken }
+      }
+    )
+
+    let settingsData = JSON.parse(settingsResponse.data.asset.value)
+
+    // ✅ Add default chatbot block if not present
+    settingsData.blocks = settingsData.blocks || {}
+    const blockId = '3693381111320325491'
+
+    if (!settingsData.blocks[blockId]) {
+      settingsData.blocks[blockId] = {
+        type: 'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894',
+        disabled: false,
+        settings: {
+          website_url: '',
+          email_id: ''
+        }
+      }
+    }
+
+    // ✅ Save back to Shopify
+    await axios.put(
+      `https://${shop}/admin/api/2024-10/themes/${activeTheme.id}/assets.json`,
+      {
+        asset: {
+          key: 'config/settings_data.json',
+          value: JSON.stringify(settingsData, null, 2)
+        }
+      },
+      {
+        headers: { 'X-Shopify-Access-Token': accessToken }
+      }
+    )
+
+    // ✅ Redirect to theme editor
     const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
     res.redirect(redirectUrl)
-
-    // res.send('App installed successfully');
   } catch (error) {
-    console.error('Error exchanging code for access token:', error)
+    console.error(
+      'Error in /auth/callback:',
+      error.response?.data || error.message
+    )
     res.status(500).send('Failed to install app')
   }
 })
