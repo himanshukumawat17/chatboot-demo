@@ -138,8 +138,6 @@ app.get('/auth/callback', async (req, res) => {
     // Store access token securely (e.g., in database)
     console.log(`Access Token for ${shop}: ${accessToken}`)
 
-    const host = Buffer.from(`${shop}/admin`, 'utf8').toString('base64')
-    res.redirect(`/post-install?host=${host}`)
     const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
     res.redirect(redirectUrl)
 
@@ -148,9 +146,6 @@ app.get('/auth/callback', async (req, res) => {
     console.error('Error exchanging code for access token:', error)
     res.status(500).send('Failed to install app')
   }
-})
-app.get('/post-install', (req, res) => {
-  res.render('post-install', { SHOPIFY_API_KEY })
 })
 
 // Start the server
