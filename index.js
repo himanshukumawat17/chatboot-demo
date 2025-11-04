@@ -117,8 +117,9 @@ app.get('/auth', (req, res) => {
 // OAuth callback to handle the token exchange
 app.get('/auth/callback', async (req, res) => {
   const { code, shop } = req.query
-  if (!code || !shop)
+  if (!code || !shop) {
     return res.status(400).send('Missing code or shop parameter')
+  }
 
   try {
     // === 1. Exchange authorization code for access token ===
@@ -134,7 +135,7 @@ app.get('/auth/callback', async (req, res) => {
     const accessToken = tokenRes.data.access_token
     console.log(`✅ Access Token for ${shop}: ${accessToken}`)
 
-    // === 2. Optional: Check granted scopes ===
+    // === 2. Check granted scopes ===
     const scopes = await axios.get(
       `https://${shop}/admin/oauth/access_scopes.json`,
       {
@@ -145,7 +146,7 @@ app.get('/auth/callback', async (req, res) => {
 
     // === 3. Get all themes ===
     const themesRes = await axios.get(
-      `https://${shop}/admin/api/2023-10/themes.json`,
+      `https://${shop}/admin/api/2024-10/themes.json`,
       {
         headers: { 'X-Shopify-Access-Token': accessToken }
       }
@@ -160,27 +161,38 @@ app.get('/auth/callback', async (req, res) => {
       try {
         console.log(`🔍 Processing theme ID: ${theme.id} (${theme.name})`)
 
-        // Get settings_data.json
+        // Fetch settings_data.json
         const assetRes = await axios.get(
-          `https://${shop}/admin/api/2023-10/themes/${theme.id}/assets.json`,
+          `https://${shop}/admin/api/2024-10/themes/${theme.id}/assets.json`,
           {
             headers: { 'X-Shopify-Access-Token': accessToken },
             params: { 'asset[key]': 'config/settings_data.json' }
           }
         )
 
-        // Parse settings JSON
+        // Parse the settings JSON
         let settingsData = JSON.parse(assetRes.data.asset.value)
 
-        // Ensure the field exists or create it
-        if (!settingsData.current) settingsData.current = {}
+        // ✅ Make sure blocks exist
+        if (settingsData.current && settingsData.current.blocks) {
+          const blocks = settingsData.current.blocks
 
-        // ✅ Dynamically set disable = true
-        settingsData.current.disable = false
+          // Loop through all blocks and disable your chatbot block
+          for (const blockId in blocks) {
+            const block = blocks[blockId]
+            if (
+              block.type ===
+              'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894'
+            ) {
+              block.disabled = false
+              console.log(`🟢 Block ${blockId} disabled`)
+            }
+          }
+        }
 
-        // Update file
+        // === 5. Save updated file ===
         await axios.put(
-          `https://${shop}/admin/api/2023-10/themes/${theme.id}/assets.json`,
+          `https://${shop}/admin/api/2024-10/themes/${theme.id}/assets.json`,
           {
             asset: {
               key: 'config/settings_data.json',
@@ -195,9 +207,8 @@ app.get('/auth/callback', async (req, res) => {
           }
         )
 
-        console.log(`✅ Updated disable=true for theme ID: ${theme.id}`)
+        console.log(`✅ Updated settings for theme ID: ${theme.id}`)
       } catch (themeErr) {
-        // Gracefully handle missing file or errors per theme
         console.warn(
           `⚠️ Skipped theme ID ${theme.id}:`,
           themeErr.response?.data?.errors || themeErr.message
@@ -205,7 +216,7 @@ app.get('/auth/callback', async (req, res) => {
       }
     }
 
-    // === 5. Redirect to admin after all updates ===
+    // === 6. Redirect merchant back to their admin ===
     res.redirect(`https://${shop}/admin/themes/current/editor?context=apps`)
   } catch (error) {
     console.error(
