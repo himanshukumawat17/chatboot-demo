@@ -26,6 +26,7 @@ let customerDataStore = {}
 let shopDataStore = {}
 
 // ⚙️ Add chatbot block to theme
+
 async function addChatbotBlock (shop, accessToken) {
   try {
     console.log(`✅ Access Token for ${shop}:`, accessToken)
@@ -55,49 +56,54 @@ async function addChatbotBlock (shop, accessToken) {
 
     const settingsData = JSON.parse(settingsResponse.data.asset.value)
 
-    // 3️⃣ Ensure chatbot block exists
-    const chatbotBlock = { type: 'chatbot', settings: {} }
+    // 3️⃣ Ensure "current" exists
+    if (!settingsData.current) settingsData.current = {}
 
-    if (!settingsData.sections) settingsData.sections = {}
-    if (!settingsData.sections.chatbot) {
-      settingsData.sections.chatbot = chatbotBlock
-      console.log('✅ Chatbot block added to sections')
+    // 4️⃣ Add chatbot block under "current"
+    if (!settingsData.current.blocks) {
+      settingsData.current.blocks = {}
+    }
+
+    const chatbotBlockId = '3693381111320325491'
+    if (!settingsData.current.blocks[chatbotBlockId]) {
+      settingsData.current.blocks[chatbotBlockId] = {
+        type: 'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894',
+        disabled: false,
+        settings: {
+          website_url: '',
+          email_id: ''
+        }
+      }
+      console.log('✅ Chatbot block added successfully')
     } else {
       console.log('ℹ️ Chatbot block already exists')
     }
 
-    // 4️⃣ Ensure it’s in order
-    if (!settingsData.order) settingsData.order = []
-    if (!settingsData.order.includes('chatbot')) {
-      settingsData.order.push('chatbot')
-    }
+    // 5️⃣ Upload updated settings_data.json
     console.log(
       '🧠 Uploading updated settings_data.json to:',
       `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`
     )
-    console.log('🧠 Asset key:', 'config/settings_data.json')
-    console.log(
-      '🧠 First few chars:',
-      JSON.stringify(settingsData).slice(0, 200)
-    )
 
-    // 5️⃣ Save back the modified settings
-    await axios({
-      method: 'PUT',
-      url: `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': accessToken
-      },
-      data: {
+    await axios.put(
+      `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`,
+      {
         asset: {
           key: 'config/settings_data.json',
-          value: JSON.stringify(settingsData)
+          value: JSON.stringify(settingsData, null, 2)
+        }
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': accessToken
         }
       }
-    })
+    )
 
-    console.log('🎉 Chatbot block successfully added to theme!')
+    console.log(
+      '🎉 Chatbot block successfully injected into settings_data.json!'
+    )
   } catch (error) {
     console.error(
       '❌ Error adding chatbot block:',
