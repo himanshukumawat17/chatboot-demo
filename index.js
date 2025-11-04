@@ -68,7 +68,7 @@ async function addChatbotBlock (shop, accessToken) {
     if (!settingsData.current.blocks[chatbotBlockId]) {
       settingsData.current.blocks[chatbotBlockId] = {
         type: 'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894',
-        disabled: false,
+        disabled: false, // ✅ Enabled by default
         settings: {
           website_url: '',
           email_id: ''
@@ -76,7 +76,9 @@ async function addChatbotBlock (shop, accessToken) {
       }
       console.log('✅ Chatbot block added successfully')
     } else {
-      console.log('ℹ️ Chatbot block already exists')
+      // Even if it exists, ensure it’s enabled
+      settingsData.current.blocks[chatbotBlockId].disabled = false
+      console.log('ℹ️ Chatbot block already exists — ensured it’s enabled')
     }
 
     // 5️⃣ Upload updated settings_data.json
@@ -85,25 +87,48 @@ async function addChatbotBlock (shop, accessToken) {
       `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`
     )
 
-    await axios.put(
-      `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`,
-      {
-        asset: {
-          key: 'config/settings_data.json',
-          value: JSON.stringify(settingsData, null, 2)
+    try {
+      await axios.put(
+        `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json?asset[key]=config/settings_data.json`,
+        {
+          asset: {
+            key: 'config/settings_data.json',
+            value: JSON.stringify(settingsData, null, 2)
+          }
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': accessToken
+          }
         }
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': accessToken
-        }
+      )
+      console.log(
+        '🎉 Chatbot block successfully injected into settings_data.json!'
+      )
+    } catch (err) {
+      if (err.response?.data?.errors === 'Not Found') {
+        console.log('⚠️ Asset missing — creating new settings_data.json...')
+        await axios.post(
+          `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`,
+          {
+            asset: {
+              key: 'config/settings_data.json',
+              value: JSON.stringify(settingsData, null, 2)
+            }
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Shopify-Access-Token': accessToken
+            }
+          }
+        )
+        console.log('✅ Created new settings_data.json successfully!')
+      } else {
+        console.error('❌ Upload failed:', err.response?.data || err.message)
       }
-    )
-
-    console.log(
-      '🎉 Chatbot block successfully injected into settings_data.json!'
-    )
+    }
   } catch (error) {
     console.error(
       '❌ Error adding chatbot block:',
