@@ -7,12 +7,12 @@ const bodyParser = require('body-parser')
 dotenv.config()
 
 const app = express()
-const port = process.env.PORT || 10026
+const port = process.env.PORT || 3000
 
 // Set up the OAuth constants
 const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY
 const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET
-const SHOPIFY_SCOPE = 'read_products,write_orders,read_themes,write_themes'
+const SHOPIFY_SCOPE = 'read_products,write_orders' // Adjust the scopes as needed
 const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI
 
 app.use(cors())
@@ -117,149 +117,40 @@ app.get('/auth', (req, res) => {
 // OAuth callback to handle the token exchange
 app.get('/auth/callback', async (req, res) => {
   const { code, shop } = req.query
+
   if (!code || !shop) {
     return res.status(400).send('Missing code or shop parameter')
   }
 
   try {
-    // === 1. Exchange authorization code for access token ===
-    const tokenRes = await axios.post(
+    // Exchange authorization code for access token
+    const tokenResponse = await axios.post(
       `https://${shop}/admin/oauth/access_token`,
       {
         client_id: SHOPIFY_API_KEY,
         client_secret: SHOPIFY_API_SECRET,
-        code
+        code: code
       }
     )
 
-    const accessToken = tokenRes.data.access_token
-    console.log(`✅ Access Token for ${shop}: ${accessToken}`)
+    const accessToken = tokenResponse.data.access_token
 
-    // === 2. Optional: Check granted scopes ===
-    const scopes = await axios.get(
-      `https://${shop}/admin/oauth/access_scopes.json`,
-      {
-        headers: { 'X-Shopify-Access-Token': accessToken }
-      }
-    )
-    console.log('Granted Scopes:', scopes.data)
+    // Store access token securely (e.g., in database)
+    console.log(`Access Token for ${shop}: ${accessToken}`)
 
-    // === 3. Get all themes ===
-    const themesRes = await axios.get(
-      `https://${shop}/admin/api/2024-10/themes.json`,
-      {
-        headers: { 'X-Shopify-Access-Token': accessToken }
-      }
-    )
+    const host = Buffer.from(`${shop}/admin`, 'utf8').toString('base64')
+    res.redirect(`/post-install?host=${host}`)
+    const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
+    res.redirect(redirectUrl)
 
-    const themes = themesRes.data.themes || []
-    if (!themes.length) return res.status(404).send('No themes found')
-    console.log(`🧩 Found ${themes.length} theme(s)`)
-
-    // === 4. Loop through each theme and update/create chatbot block ===
-    for (const theme of themes) {
-      try {
-        console.log(`🔍 Processing theme ID: ${theme.id} (${theme.name})`)
-
-        // Fetch settings_data.json
-        const assetRes = await axios.get(
-          `https://${shop}/admin/api/2024-10/themes/${theme.id}/assets.json`,
-          {
-            headers: { 'X-Shopify-Access-Token': accessToken },
-            params: { 'asset[key]': 'config/settings_data.json' }
-          }
-        )
-
-        // Parse the settings JSON
-        let settingsData = JSON.parse(assetRes.data.asset.value)
-
-        // ✅ Ensure 'blocks' structure exists
-        // ✅ Ensure 'sections' structure exists
-        if (!settingsData.current) settingsData.current = {}
-        if (!settingsData.current.sections) settingsData.current.sections = {}
-
-        // Choose the main or first section
-        const sectionId =
-          Object.keys(settingsData.current.sections)[0] || 'main'
-        if (!settingsData.current.sections[sectionId]) {
-          settingsData.current.sections[sectionId] = {
-            type: 'main',
-            blocks: {},
-            block_order: []
-          }
-        }
-
-        const section = settingsData.current.sections[sectionId]
-
-        const chatbotBlockId = 'convex_ai_chatbot_block_1'
-        const chatbotBlockType =
-          'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894'
-
-        // Check if block already exists
-        const existingBlock = Object.entries(section.blocks || {}).find(
-          ([, block]) => block.type === chatbotBlockType
-        )
-
-        if (existingBlock) {
-          const [blockId, blockData] = existingBlock
-          blockData.disabled = false
-          console.log(`🟢 Existing chatbot block (${blockId}) re-enabled`)
-        } else {
-          // 🆕 Create a new block and add it to the section
-          section.blocks[chatbotBlockId] = {
-            type: chatbotBlockType,
-            disabled: false,
-            settings: {
-              website_url: '',
-              email_id: 'example@example.com'
-            }
-          }
-
-          // Make sure it's added to the block order so Shopify shows it
-          if (!section.block_order.includes(chatbotBlockId)) {
-            section.block_order.push(chatbotBlockId)
-          }
-
-          console.log(
-            `✨ Created and enabled chatbot block in section "${sectionId}"`
-          )
-        }
-
-        // === 5. Save updated file ===
-        await axios.put(
-          `https://${shop}/admin/api/2024-10/themes/${theme.id}/assets.json`,
-          {
-            asset: {
-              key: 'config/settings_data.json',
-              value: JSON.stringify(settingsData, null, 2)
-            }
-          },
-          {
-            headers: {
-              'X-Shopify-Access-Token': accessToken,
-              'Content-Type': 'application/json'
-            }
-          }
-        )
-
-        console.log(`✅ Updated settings_data.json for theme ID: ${theme.id}`)
-      } catch (themeErr) {
-        console.warn(
-          `⚠️ Skipped theme ID ${theme.id}:`,
-          themeErr.response?.data?.errors || themeErr.message
-        )
-      }
-    }
-
-    // === 6. Redirect merchant back to their admin ===
-    res.redirect(`https://${shop}/admin/themes/current/editor?context=apps`)
+    // res.send('App installed successfully');
   } catch (error) {
-    console.error(
-      '❌ Error during callback or updating themes:',
-      error.response?.data || error.message
-    )
-    res.status(500).send('Failed to install app or update settings')
+    console.error('Error exchanging code for access token:', error)
+    res.status(500).send('Failed to install app')
   }
+})
+app.get('/post-install', (req, res) => {
+  res.render('post-install', { SHOPIFY_API_KEY })
 })
 
 // Start the server

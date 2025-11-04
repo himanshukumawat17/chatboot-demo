@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Enable App Embed</title>
+    <script src="https://unpkg.com/@shopify/app-bridge@3"></script>
+</head>
+
+<body>
+    <h2>Almost done!</h2>
+    <p>We’re redirecting you to enable your app in the theme editor...</p>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const params = new URLSearchParams(window.location.search);
+            const host = params.get('host');
+
+            const app = window['app-bridge'].createApp({
+                apiKey: '<%= SHOPIFY_API_KEY %>',
+                host: host,
+            });
+
+            const Redirect = window['app-bridge'].actions.Redirect;
+            const redirect = Redirect.create(app);
+
+            // Redirect to Shopify Theme Editor where app embed can be enabled
+            redirect.dispatch(
+                Redirect.Action.ADMIN_PATH,
+                '/themes/current/editor?context=apps'
+            );
+        });
+    </script>
+</body>
+
+</html>
