@@ -71,23 +71,31 @@ async function addChatbotBlock (shop, accessToken) {
     if (!settingsData.order.includes('chatbot')) {
       settingsData.order.push('chatbot')
     }
+    console.log(
+      '🧠 Uploading updated settings_data.json to:',
+      `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`
+    )
+    console.log('🧠 Asset key:', 'config/settings_data.json')
+    console.log(
+      '🧠 First few chars:',
+      JSON.stringify(settingsData).slice(0, 200)
+    )
 
     // 5️⃣ Save back the modified settings
-    await axios.put(
-      `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`,
-      {
+    await axios({
+      method: 'PUT',
+      url: `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken
+      },
+      data: {
         asset: {
           key: 'config/settings_data.json',
-          value: JSON.stringify(settingsData, null, 2)
-        }
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': accessToken
+          value: JSON.stringify(settingsData)
         }
       }
-    )
+    })
 
     console.log('🎉 Chatbot block successfully added to theme!')
   } catch (error) {
