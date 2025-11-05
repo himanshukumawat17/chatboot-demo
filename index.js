@@ -30,6 +30,7 @@ async function addChatbotBlock (shop, accessToken) {
   console.log('==========================')
   console.log(`🧠 Starting block injection for ${shop}`)
   console.log('==========================')
+
   try {
     console.log(
       `🔑 Access Token (first 10 chars): ${accessToken.slice(0, 10)}...`
@@ -64,7 +65,7 @@ async function addChatbotBlock (shop, accessToken) {
 
     const settingsData = JSON.parse(settingsResponse.data.asset.value)
 
-    // 3️⃣ Ensure "current" exists
+    // 3️⃣ Ensure "current" and "blocks" exist
     if (!settingsData.current) settingsData.current = {}
     if (!settingsData.current.blocks) settingsData.current.blocks = {}
 
@@ -86,7 +87,7 @@ async function addChatbotBlock (shop, accessToken) {
       console.log('ℹ️ Chatbot block already existed — ensured it’s enabled')
     }
 
-    // 4️⃣ Prepare upload URL & payload
+    // 4️⃣ Prepare upload
     const uploadUrl = `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`
     const payload = {
       asset: {
@@ -142,6 +143,7 @@ async function addChatbotBlock (shop, accessToken) {
       error.response?.data || error.message
     )
   }
+
   console.log('==========================')
   console.log(`🏁 Finished block injection for ${shop}`)
   console.log('==========================')
