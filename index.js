@@ -161,6 +161,7 @@ app.get('/auth/callback', async (req, res) => {
   const { code, shop } = req.query
   if (!code || !shop)
     return res.status(400).send('Missing code or shop parameter')
+  console.log(code, 'code')
 
   try {
     // 1️⃣ Exchange code for access token
