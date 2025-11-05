@@ -26,6 +26,7 @@ let customerDataStore = {}
 let shopDataStore = {}
 
 // ⚙️ Add chatbot block to theme
+
 async function addChatbotBlock (shop, accessToken) {
   console.log('==========================')
   console.log(`🧠 Starting block injection for ${shop}`)
@@ -36,7 +37,7 @@ async function addChatbotBlock (shop, accessToken) {
       `🔑 Access Token (first 10 chars): ${accessToken.slice(0, 10)}...`
     )
 
-    // 1️⃣ Get all themes
+    // 1️⃣ Get main theme
     console.log(`📡 Fetching themes for shop: ${shop}`)
     const themesResponse = await axios.get(
       `https://${shop}/admin/api/2024-07/themes.json`,
@@ -45,25 +46,25 @@ async function addChatbotBlock (shop, accessToken) {
       }
     )
 
-    console.log('🧾 Themes response:', themesResponse.data.themes)
-    const mainTheme = themesResponse.data.themes.find(
-      theme => theme.role === 'main'
-    )
+    const mainTheme = themesResponse.data.themes.find(t => t.role === 'main')
     if (!mainTheme) throw new Error('No main theme found')
-
     console.log(`✅ Found main theme: ${mainTheme.name} (${mainTheme.id})`)
 
-    // 2️⃣ Fetch settings_data.json
+    // 2️⃣ Fetch existing settings_data.json
     const settingsUrl = `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json?asset[key]=config/settings_data.json`
     console.log(`📡 Fetching settings_data.json from: ${settingsUrl}`)
 
-    const settingsResponse = await axios.get(settingsUrl, {
-      headers: { 'X-Shopify-Access-Token': accessToken }
-    })
-
-    console.log('📜 Existing settings_data.json fetched successfully')
-
-    const settingsData = JSON.parse(settingsResponse.data.asset.value)
+    let settingsData = {}
+    try {
+      const settingsResponse = await axios.get(settingsUrl, {
+        headers: { 'X-Shopify-Access-Token': accessToken }
+      })
+      console.log('📜 Existing settings_data.json fetched successfully')
+      settingsData = JSON.parse(settingsResponse.data.asset.value)
+    } catch (err) {
+      console.warn('⚠️ settings_data.json not found — creating new one')
+      settingsData = { current: { blocks: {} } }
+    }
 
     // 3️⃣ Ensure "current" and "blocks" exist
     if (!settingsData.current) settingsData.current = {}
@@ -79,6 +80,7 @@ async function addChatbotBlock (shop, accessToken) {
       }
     }
 
+    // 4️⃣ Add or update chatbot block
     if (!settingsData.current.blocks[chatbotBlockId]) {
       settingsData.current.blocks[chatbotBlockId] = chatbotBlock
       console.log('✅ Chatbot block added successfully')
@@ -87,7 +89,7 @@ async function addChatbotBlock (shop, accessToken) {
       console.log('ℹ️ Chatbot block already existed — ensured it’s enabled')
     }
 
-    // 4️⃣ Prepare upload
+    // 5️⃣ Upload updated settings_data.json
     const uploadUrl = `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`
     const payload = {
       asset: {
@@ -99,44 +101,22 @@ async function addChatbotBlock (shop, accessToken) {
     console.log('📤 Upload URL:', uploadUrl)
     console.log(
       '📦 Payload preview:',
-      JSON.stringify(payload).slice(0, 500) + '...'
+      JSON.stringify(payload).slice(0, 300) + '...'
     )
     console.log('📋 Headers:', {
       'Content-Type': 'application/json',
       'X-Shopify-Access-Token': accessToken.slice(0, 10) + '...'
     })
 
-    // 5️⃣ Upload updated settings_data.json
-    try {
-      const putResponse = await axios.put(uploadUrl, payload, {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Shopify-Access-Token': accessToken
-        }
-      })
-      console.log('🎉 Chatbot block successfully injected!')
-      console.log('📡 Shopify Response:', putResponse.data)
-    } catch (err) {
-      console.error('❌ PUT failed — response data:', err.response?.data)
-      if (err.response?.data?.errors === 'Not Found') {
-        console.log('⚠️ settings_data.json missing — creating new one...')
-        const postResponse = await axios.post(uploadUrl, payload, {
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Shopify-Access-Token': accessToken
-          }
-        })
-        console.log(
-          '✅ Created new settings_data.json successfully!',
-          postResponse.data
-        )
-      } else {
-        console.error(
-          '💥 Unexpected upload error:',
-          err.response?.data || err.message
-        )
+    const response = await axios.put(uploadUrl, payload, {
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken
       }
-    }
+    })
+
+    console.log('🎉 Chatbot block successfully injected!')
+    console.log('📡 Shopify Response:', response.data)
   } catch (error) {
     console.error(
       '❌ Error adding chatbot block:',
