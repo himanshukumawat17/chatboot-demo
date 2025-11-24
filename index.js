@@ -1,225 +1,363 @@
-const express = require('express')
-const axios = require('axios')
-const dotenv = require('dotenv')
-const cors = require('cors')
-const bodyParser = require('body-parser')
+// const express = require('express')
+// const axios = require('axios')
+// const dotenv = require('dotenv')
+// const cors = require('cors')
+// const bodyParser = require('body-parser')
 
-dotenv.config()
+// dotenv.config()
 
-const app = express()
-const port = process.env.PORT || 3000
+// const app = express()
+// const port = process.env.PORT || 3000
 
-// 🧩 Shopify OAuth constants
-const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY
-const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET
-const SHOPIFY_SCOPE =
-  'read_themes,write_themes,read_products,write_products,read_script_tags,write_script_tags'
-const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI
+// // 🧩 Shopify OAuth constants
+// const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY
+// const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET
+// const SHOPIFY_SCOPE =
+//   'read_themes,write_themes,read_products,write_products,read_script_tags,write_script_tags'
+// const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI
 
-app.use(cors())
-app.use(express.static('public'))
-app.use(bodyParser.json())
-app.set('view engine', 'ejs')
+// app.use(cors())
+// app.use(express.static('public'))
+// app.use(bodyParser.json())
+// app.set('view engine', 'ejs')
 
-// 🧠 In-memory store (replace with DB later)
-let customerDataStore = {}
-let shopDataStore = {}
+// // 🧠 In-memory store (replace with DB later)
+// let customerDataStore = {}
+// let shopDataStore = {}
 
-// ⚙️ Add chatbot block to theme
+// // ⚙️ Add chatbot block to theme
 
-async function addChatbotBlock (shop, accessToken) {
-  console.log('==========================')
-  console.log(`🧠 Starting block injection for ${shop}`)
-  console.log('==========================')
+// async function addChatbotBlock (shop, accessToken) {
+//   console.log('==========================')
+//   console.log(`🧠 Starting block injection for ${shop}`)
+//   console.log('==========================')
 
-  try {
-    console.log(
-      `🔑 Access Token (first 10 chars): ${accessToken.slice(0, 10)}...`
-    )
+//   try {
+//     console.log(
+//       `🔑 Access Token (first 10 chars): ${accessToken.slice(0, 10)}...`
+//     )
 
-    // 1️⃣ Get main theme
-    console.log(`📡 Fetching themes for shop: ${shop}`)
-    const themesResponse = await axios.get(
-      `https://${shop}/admin/api/2024-07/themes.json`,
-      {
-        headers: { 'X-Shopify-Access-Token': accessToken }
-      }
-    )
+//     // 1️⃣ Get main theme
+//     console.log(`📡 Fetching themes for shop: ${shop}`)
+//     const themesResponse = await axios.get(
+//       `https://${shop}/admin/api/2024-07/themes.json`,
+//       {
+//         headers: { 'X-Shopify-Access-Token': accessToken }
+//       }
+//     )
 
-    const mainTheme = themesResponse.data.themes.find(t => t.role === 'main')
-    if (!mainTheme) throw new Error('No main theme found')
-    console.log(`✅ Found main theme: ${mainTheme.name} (${mainTheme.id})`)
+//     const mainTheme = themesResponse.data.themes.find(t => t.role === 'main')
+//     if (!mainTheme) throw new Error('No main theme found')
+//     console.log(`✅ Found main theme: ${mainTheme.name} (${mainTheme.id})`)
 
-    // 2️⃣ Fetch existing settings_data.json
-    const settingsUrl = `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json?asset[key]=config/settings_data.json`
-    console.log(`📡 Fetching settings_data.json from: ${settingsUrl}`)
+//     // 2️⃣ Fetch existing settings_data.json
+//     const settingsUrl = `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json?asset[key]=config/settings_data.json`
+//     console.log(`📡 Fetching settings_data.json from: ${settingsUrl}`)
 
-    let settingsData = {}
+//     let settingsData = {}
+//     try {
+//       const settingsResponse = await axios.get(settingsUrl, {
+//         headers: { 'X-Shopify-Access-Token': accessToken }
+//       })
+//       console.log('📜 Existing settings_data.json fetched successfully')
+//       settingsData = JSON.parse(settingsResponse.data.asset.value)
+//     } catch (err) {
+//       console.warn('⚠️ settings_data.json not found — creating new one')
+//       settingsData = { current: { blocks: {} } }
+//     }
+
+//     // 3️⃣ Ensure "current" and "blocks" exist
+//     if (!settingsData.current) settingsData.current = {}
+//     if (!settingsData.current.blocks) settingsData.current.blocks = {}
+
+//     const chatbotBlockId = '3693381111320325491'
+//     const chatbotBlock = {
+//       type: 'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894',
+//       disabled: false,
+//       settings: {
+//         website_url: '',
+//         email_id: ''
+//       }
+//     }
+
+//     // 4️⃣ Add or update chatbot block
+//     if (!settingsData.current.blocks[chatbotBlockId]) {
+//       settingsData.current.blocks[chatbotBlockId] = chatbotBlock
+//       console.log('✅ Chatbot block added successfully')
+//     } else {
+//       settingsData.current.blocks[chatbotBlockId].disabled = false
+//       console.log('ℹ️ Chatbot block already existed — ensured it’s enabled')
+//     }
+
+//     // 5️⃣ Upload updated settings_data.json
+//     const uploadUrl = `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`
+//     const payload = {
+//       asset: {
+//         key: 'config/settings_data.json',
+//         value: JSON.stringify(settingsData, null, 2)
+//       }
+//     }
+
+//     console.log('📤 Upload URL:', uploadUrl)
+//     console.log(
+//       '📦 Payload preview:',
+//       JSON.stringify(payload).slice(0, 300) + '...'
+//     )
+//     console.log('📋 Headers:', {
+//       'Content-Type': 'application/json',
+//       'X-Shopify-Access-Token': accessToken.slice(0, 10) + '...'
+//     })
+
+//     const response = await axios.put(uploadUrl, payload, {
+//       headers: {
+//         'Content-Type': 'application/json',
+//         'X-Shopify-Access-Token': accessToken
+//       }
+//     })
+
+//     console.log('🎉 Chatbot block successfully injected!')
+//     console.log('📡 Shopify Response:', response.data)
+//   } catch (error) {
+//     console.error(
+//       '❌ Error adding chatbot block:',
+//       error.response?.data || error.message
+//     )
+//   }
+
+//   console.log('==========================')
+//   console.log(`🏁 Finished block injection for ${shop}`)
+//   console.log('==========================')
+// }
+
+// // 🏠 Home route (installation start)
+// app.get('/', (req, res) => {
+//   const shop = req.query.shop
+//   res.render('install', {
+//     title: 'Install My App',
+//     message: 'Welcome to Shopify App!',
+//     shopName: shop
+//   })
+// })
+
+// // 🚀 Begin OAuth
+// app.get('/auth', (req, res) => {
+//   const shop = req.query.shop
+//   if (!shop) return res.status(400).send('Missing shop parameter')
+
+//   const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${SHOPIFY_API_KEY}&scope=${SHOPIFY_SCOPE}&redirect_uri=${SHOPIFY_REDIRECT_URI}`
+//   console.log(`🔗 Redirecting for installation: ${installUrl}`)
+//   res.redirect(installUrl)
+// })
+
+// // 🧩 OAuth Callback
+// app.get('/auth/callback', async (req, res) => {
+//   const { code, shop } = req.query
+//   if (!code || !shop)
+//     return res.status(400).send('Missing code or shop parameter')
+
+//   console.log('📥 OAuth callback received for shop:', shop)
+//   console.log('🔑 Code:', code)
+
+//   try {
+//     // 1️⃣ Exchange code for access token
+//     const tokenResponse = await axios.post(
+//       `https://${shop}/admin/oauth/access_token`,
+//       {
+//         client_id: SHOPIFY_API_KEY,
+//         client_secret: SHOPIFY_API_SECRET,
+//         code: code
+//       }
+//     )
+
+//     const accessToken = tokenResponse.data.access_token
+//     console.log(`✅ Access Token for ${shop}: ${accessToken}`)
+
+//     // 2️⃣ Automatically enable Chatbot
+//     await addChatbotBlock(shop, accessToken)
+
+//     // 3️⃣ Redirect to Shopify Theme Editor
+//     const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
+//     console.log(`🔄 Redirecting to Theme Editor: ${redirectUrl}`)
+//     res.redirect(redirectUrl)
+//   } catch (error) {
+//     console.error(
+//       '❌ Error in /auth/callback:',
+//       error.response?.data || error.message
+//     )
+//     res.status(500).send('Failed to install app')
+//   }
+// })
+
+// // 🧹 GDPR Endpoints (for compliance)
+// app.post('/customer-data-request', (req, res) => {
+//   const { customer_id, request_id } = req.body
+//   if (!customer_id || !request_id)
+//     return res.status(400).json({ error: 'Missing customer_id or request_id' })
+
+//   const customerData = customerDataStore[customer_id]
+//   if (!customerData)
+//     return res.status(404).json({ error: 'Customer data not found' })
+
+//   res.json({ request_id, customer_id, data: customerData })
+// })
+
+// app.post('/customer-data-erasure', (req, res) => {
+//   const { customer_id, request_id } = req.body
+//   if (!customer_id || !request_id)
+//     return res.status(400).json({ error: 'Missing customer_id or request_id' })
+
+//   delete customerDataStore[customer_id]
+//   res.json({ request_id, customer_id, status: 'Data erased successfully' })
+// })
+
+// app.post('/shop-data-erasure', (req, res) => {
+//   const { shop_id, request_id } = req.body
+//   if (!shop_id || !request_id)
+//     return res.status(400).json({ error: 'Missing shop_id or request_id' })
+
+//   delete shopDataStore[shop_id]
+//   res.json({ request_id, shop_id, status: 'Shop data erased successfully' })
+// })
+
+// // 🖥️ Start server
+// app.listen(port, () => {
+//   console.log(`🚀 App is running on port ${port}`)
+// })
+
+const express = require("express");
+const axios = require("axios");
+const dotenv = require("dotenv");
+const cors = require("cors");
+const crypto = require("crypto");
+const cookieParser = require("cookie-parser");
+const bodyParser = require("body-parser");
+
+dotenv.config();
+
+const app = express();
+const port = process.env.PORT || 3000;
+
+// ENV Vars
+const SHOPIFY_API_KEY = process.env.SHOPIFY_API_KEY;
+const SHOPIFY_API_SECRET = process.env.SHOPIFY_API_SECRET;
+const SHOPIFY_SCOPE = process.env.SHOPIFY_SCOPES;
+const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI;
+
+app.use(cors());
+app.use(express.static("public"));
+app.use(bodyParser.json());
+app.use(cookieParser(process.env.SESSION_SECRET));
+app.set("view engine", "ejs");
+
+// ❗ In-memory (replace with DB later)
+let shopSessions = {};
+
+
+// 🏡 HOME route
+app.get("/", (req, res) => {
+    res.render("install");
+});
+
+
+// 🚀 Begin OAuth Step 1
+app.get("/auth", (req, res) => {
+    const shop = req.query.shop;
+
+    if (!shop || !shop.includes(".myshopify.com")) {
+        return res.status(400).send("Invalid Shop URL");
+    }
+
+    // Create state token
+    const state = crypto.randomBytes(16).toString("hex");
+    res.cookie("state", state, { httpOnly: true, secure: true });
+
+    // Build OAuth URL
+    const installUrl =
+        `https://${shop}/admin/oauth/authorize?` +
+        `client_id=${SHOPIFY_API_KEY}` +
+        `&scope=${SHOPIFY_SCOPE}` +
+        `&redirect_uri=${encodeURIComponent(SHOPIFY_REDIRECT_URI)}` +
+        `&state=${state}` +
+        `&grant_options[]=per-user`;
+
+    console.log("Redirecting to:", installUrl);
+    res.redirect(installUrl);
+});
+
+
+// 🧩 OAuth Callback Step 2
+app.get("/auth/callback", async (req, res) => {
+    const { shop, code, state, hmac } = req.query;
+
+    console.log("CALLBACK HIT WITH:", req.query);
+
+    if (!shop || !code || !hmac) {
+        return res.status(400).send("Missing code or shop parameter");
+    }
+
+    // Validate state
+    const storedState = req.cookies.state;
+    if (!storedState || storedState !== state) {
+        return res.status(400).send("Invalid state parameter");
+    }
+
+    // Validate HMAC (Shopify security)
+    const queryParams = { ...req.query };
+    delete queryParams["signature"];
+    delete queryParams["hmac"];
+
+    const message = new URLSearchParams(queryParams).toString();
+    const computedHmac = crypto
+        .createHmac("sha256", SHOPIFY_API_SECRET)
+        .update(message)
+        .digest("hex");
+
+    if (computedHmac !== hmac) {
+        return res.status(400).send("HMAC validation failed");
+    }
+
     try {
-      const settingsResponse = await axios.get(settingsUrl, {
-        headers: { 'X-Shopify-Access-Token': accessToken }
-      })
-      console.log('📜 Existing settings_data.json fetched successfully')
-      settingsData = JSON.parse(settingsResponse.data.asset.value)
-    } catch (err) {
-      console.warn('⚠️ settings_data.json not found — creating new one')
-      settingsData = { current: { blocks: {} } }
+        // Exchange temporary code for permanent token
+        const tokenResponse = await axios.post(
+            `https://${shop}/admin/oauth/access_token`,
+            {
+                client_id: SHOPIFY_API_KEY,
+                client_secret: SHOPIFY_API_SECRET,
+                code
+            }
+        );
+
+        const access_token = tokenResponse.data.access_token;
+
+        shopSessions[shop] = { access_token };
+
+        console.log(`ACCESS TOKEN FOR ${shop}: ${access_token}`);
+
+        // After installation → redirect user to the Theme Editor
+        res.redirect(`https://${shop}/admin/themes/current/editor?context=apps`);
+
+    } catch (error) {
+        console.error("OAuth Error:", error.response?.data || error);
+        res.status(500).send("OAuth Failed");
     }
+});
 
-    // 3️⃣ Ensure "current" and "blocks" exist
-    if (!settingsData.current) settingsData.current = {}
-    if (!settingsData.current.blocks) settingsData.current.blocks = {}
 
-    const chatbotBlockId = '3693381111320325491'
-    const chatbotBlock = {
-      type: 'shopify://apps/convex-ai-chatbot/blocks/chatbot/f62e808d-7883-49d1-ad07-3b5489568894',
-      disabled: false,
-      settings: {
-        website_url: '',
-        email_id: ''
-      }
-    }
+// GDPR Routes
+app.post("/customer-data-request", (req, res) => {
+    res.json({ message: "GDPR request received" });
+});
 
-    // 4️⃣ Add or update chatbot block
-    if (!settingsData.current.blocks[chatbotBlockId]) {
-      settingsData.current.blocks[chatbotBlockId] = chatbotBlock
-      console.log('✅ Chatbot block added successfully')
-    } else {
-      settingsData.current.blocks[chatbotBlockId].disabled = false
-      console.log('ℹ️ Chatbot block already existed — ensured it’s enabled')
-    }
+app.post("/customer-data-erasure", (req, res) => {
+    res.json({ message: "Customer data erased" });
+});
 
-    // 5️⃣ Upload updated settings_data.json
-    const uploadUrl = `https://${shop}/admin/api/2024-07/themes/${mainTheme.id}/assets.json`
-    const payload = {
-      asset: {
-        key: 'config/settings_data.json',
-        value: JSON.stringify(settingsData, null, 2)
-      }
-    }
+app.post("/shop-data-erasure", (req, res) => {
+    res.json({ message: "Shop data erased" });
+});
 
-    console.log('📤 Upload URL:', uploadUrl)
-    console.log(
-      '📦 Payload preview:',
-      JSON.stringify(payload).slice(0, 300) + '...'
-    )
-    console.log('📋 Headers:', {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': accessToken.slice(0, 10) + '...'
-    })
 
-    const response = await axios.put(uploadUrl, payload, {
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Shopify-Access-Token': accessToken
-      }
-    })
-
-    console.log('🎉 Chatbot block successfully injected!')
-    console.log('📡 Shopify Response:', response.data)
-  } catch (error) {
-    console.error(
-      '❌ Error adding chatbot block:',
-      error.response?.data || error.message
-    )
-  }
-
-  console.log('==========================')
-  console.log(`🏁 Finished block injection for ${shop}`)
-  console.log('==========================')
-}
-
-// 🏠 Home route (installation start)
-app.get('/', (req, res) => {
-  const shop = req.query.shop
-  res.render('install', {
-    title: 'Install My App',
-    message: 'Welcome to Shopify App!',
-    shopName: shop
-  })
-})
-
-// 🚀 Begin OAuth
-app.get('/auth', (req, res) => {
-  const shop = req.query.shop
-  if (!shop) return res.status(400).send('Missing shop parameter')
-
-  const installUrl = `https://${shop}/admin/oauth/authorize?client_id=${SHOPIFY_API_KEY}&scope=${SHOPIFY_SCOPE}&redirect_uri=${SHOPIFY_REDIRECT_URI}`
-  console.log(`🔗 Redirecting for installation: ${installUrl}`)
-  res.redirect(installUrl)
-})
-
-// 🧩 OAuth Callback
-app.get('/auth/callback', async (req, res) => {
-  const { code, shop } = req.query
-  if (!code || !shop)
-    return res.status(400).send('Missing code or shop parameter')
-
-  console.log('📥 OAuth callback received for shop:', shop)
-  console.log('🔑 Code:', code)
-
-  try {
-    // 1️⃣ Exchange code for access token
-    const tokenResponse = await axios.post(
-      `https://${shop}/admin/oauth/access_token`,
-      {
-        client_id: SHOPIFY_API_KEY,
-        client_secret: SHOPIFY_API_SECRET,
-        code: code
-      }
-    )
-
-    const accessToken = tokenResponse.data.access_token
-    console.log(`✅ Access Token for ${shop}: ${accessToken}`)
-
-    // 2️⃣ Automatically enable Chatbot
-    await addChatbotBlock(shop, accessToken)
-
-    // 3️⃣ Redirect to Shopify Theme Editor
-    const redirectUrl = `https://${shop}/admin/themes/current/editor?context=apps`
-    console.log(`🔄 Redirecting to Theme Editor: ${redirectUrl}`)
-    res.redirect(redirectUrl)
-  } catch (error) {
-    console.error(
-      '❌ Error in /auth/callback:',
-      error.response?.data || error.message
-    )
-    res.status(500).send('Failed to install app')
-  }
-})
-
-// 🧹 GDPR Endpoints (for compliance)
-app.post('/customer-data-request', (req, res) => {
-  const { customer_id, request_id } = req.body
-  if (!customer_id || !request_id)
-    return res.status(400).json({ error: 'Missing customer_id or request_id' })
-
-  const customerData = customerDataStore[customer_id]
-  if (!customerData)
-    return res.status(404).json({ error: 'Customer data not found' })
-
-  res.json({ request_id, customer_id, data: customerData })
-})
-
-app.post('/customer-data-erasure', (req, res) => {
-  const { customer_id, request_id } = req.body
-  if (!customer_id || !request_id)
-    return res.status(400).json({ error: 'Missing customer_id or request_id' })
-
-  delete customerDataStore[customer_id]
-  res.json({ request_id, customer_id, status: 'Data erased successfully' })
-})
-
-app.post('/shop-data-erasure', (req, res) => {
-  const { shop_id, request_id } = req.body
-  if (!shop_id || !request_id)
-    return res.status(400).json({ error: 'Missing shop_id or request_id' })
-
-  delete shopDataStore[shop_id]
-  res.json({ request_id, shop_id, status: 'Shop data erased successfully' })
-})
-
-// 🖥️ Start server
+// Start server
 app.listen(port, () => {
-  console.log(`🚀 App is running on port ${port}`)
-})
+    console.log(`🚀 App running on port ${port}`);
+});
