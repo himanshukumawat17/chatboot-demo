@@ -249,75 +249,86 @@ app.use(bodyParser.json());
 app.use(cookieParser(process.env.SESSION_SECRET));
 app.set("view engine", "ejs");
 
-// ❗ In-memory (replace with DB later)
+// In-memory (use DB later)
 let shopSessions = {};
 
 
-// 🏡 HOME route
+// -------------------- HOME PAGE --------------------
 app.get("/", (req, res) => {
     res.render("install");
 });
 
 
-// 🚀 Begin OAuth Step 1
+// -------------------- STEP 1: Begin OAuth --------------------
 app.get("/auth", (req, res) => {
     const shop = req.query.shop;
 
-    if (!shop || !shop.includes(".myshopify.com")) {
-        return res.status(400).send("Invalid Shop URL");
+    if (!shop || !shop.endsWith(".myshopify.com")) {
+        return res.status(400).send("❌ Missing or invalid shop parameter");
     }
 
-    // Create state token
+    // Generate state
     const state = crypto.randomBytes(16).toString("hex");
-    res.cookie("state", state, { httpOnly: true, secure: true });
 
-    // Build OAuth URL
+    // Secure cookie for LIVE server
+    res.cookie("state", state, {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none"
+    });
+
     const installUrl =
-        `https://${shop}/admin/oauth/authorize?` +
-        `client_id=${SHOPIFY_API_KEY}` +
+        `https://${shop}/admin/oauth/authorize` +
+        `?client_id=${SHOPIFY_API_KEY}` +
         `&scope=${SHOPIFY_SCOPE}` +
         `&redirect_uri=${encodeURIComponent(SHOPIFY_REDIRECT_URI)}` +
         `&state=${state}` +
         `&grant_options[]=per-user`;
 
-    console.log("Redirecting to:", installUrl);
+    console.log("➡ Redirecting to:", installUrl);
+
     res.redirect(installUrl);
 });
 
 
-// 🧩 OAuth Callback Step 2
+// -------------------- STEP 2: OAuth Callback --------------------
 app.get("/auth/callback", async (req, res) => {
     const { shop, code, state, hmac } = req.query;
 
-    console.log("CALLBACK HIT WITH:", req.query);
+    console.log("🔄 CALLBACK HIT:", req.query);
 
+    // Validate required parameters
     if (!shop || !code || !hmac) {
-        return res.status(400).send("Missing code or shop parameter");
+        return res.status(400).send("❌ Missing code or shop parameter");
     }
 
     // Validate state
     const storedState = req.cookies.state;
+
     if (!storedState || storedState !== state) {
-        return res.status(400).send("Invalid state parameter");
+        return res.status(400).send("❌ Invalid state parameter");
     }
 
-    // Validate HMAC (Shopify security)
-    const queryParams = { ...req.query };
-    delete queryParams["signature"];
-    delete queryParams["hmac"];
+    // ---------------- HMAC VALIDATION ----------------
+    const params = { ...req.query };
+    delete params.hmac;
+    delete params.signature;
 
-    const message = new URLSearchParams(queryParams).toString();
-    const computedHmac = crypto
+    const message = new URLSearchParams(params).toString();
+
+    const calculatedHmac = crypto
         .createHmac("sha256", SHOPIFY_API_SECRET)
         .update(message)
         .digest("hex");
 
-    if (computedHmac !== hmac) {
-        return res.status(400).send("HMAC validation failed");
+    if (calculatedHmac !== hmac) {
+        console.log("Expected:", calculatedHmac);
+        console.log("Provided:", hmac);
+        return res.status(400).send("❌ HMAC validation failed");
     }
 
+    // ---------------- EXCHANGE CODE FOR TOKEN ----------------
     try {
-        // Exchange temporary code for permanent token
         const tokenResponse = await axios.post(
             `https://${shop}/admin/oauth/access_token`,
             {
@@ -328,22 +339,21 @@ app.get("/auth/callback", async (req, res) => {
         );
 
         const access_token = tokenResponse.data.access_token;
-
         shopSessions[shop] = { access_token };
 
-        console.log(`ACCESS TOKEN FOR ${shop}: ${access_token}`);
+        console.log(`✅ ACCESS TOKEN STORED FOR: ${shop}`);
 
-        // After installation → redirect user to the Theme Editor
-        res.redirect(`https://${shop}/admin/themes/current/editor?context=apps`);
+        // Redirect user to theme editor (app loads here)
+        return res.redirect(`https://${shop}/admin/themes/current/editor?context=apps`);
 
     } catch (error) {
-        console.error("OAuth Error:", error.response?.data || error);
-        res.status(500).send("OAuth Failed");
+        console.error("❌ OAuth Error:", error.response?.data || error);
+        return res.status(500).send("OAuth Failed");
     }
 });
 
 
-// GDPR Routes
+// -------------------- GDPR ROUTES --------------------
 app.post("/customer-data-request", (req, res) => {
     res.json({ message: "GDPR request received" });
 });
@@ -357,7 +367,7 @@ app.post("/shop-data-erasure", (req, res) => {
 });
 
 
-// Start server
+// -------------------- START SERVER --------------------
 app.listen(port, () => {
-    console.log(`🚀 App running on port ${port}`);
+    console.log(`🚀 LIVE Shopify App running on port ${port}`);
 });
