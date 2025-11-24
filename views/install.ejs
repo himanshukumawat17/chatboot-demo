@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ConvexAI - Conversational AI ChatBot - Installation and Guide</title>
+    <title>App Installation and Guide</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -14,13 +14,13 @@
             padding: 0;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             height: 100vh;
             box-sizing: border-box;
         }
 
         .container {
-            margin-top: -15em;
+            margin-top: 3em;
             text-align: center;
             background-color: #fff;
             padding: 40px;
@@ -31,7 +31,7 @@
         }
 
         h1 {
-            font-size: 2.5em;
+            font-size: 2.2em;
             color: #666666;
             margin-bottom: 20px;
         }
@@ -63,22 +63,30 @@
             background-color: #1a73e8;
         }
 
-        .footer {
-            position: absolute;
-            bottom: 0;
-            width: 100%;
-            text-align: left;
+        /* Login Section */
+        .login-box {
+            margin-top: 30px;
+            padding: 25px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .login-box a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 12px 25px;
+            background-color: #1a73e8;
+            color: #fff;
             font-size: 1.1em;
-            color: #777;
-        }
-
-        .footer a {
-            color: #1a73e8;
+            border-radius: 6px;
             text-decoration: none;
+            transition: 0.3s;
         }
 
-        .footer a:hover {
-            text-decoration: underline;
+        .login-box a:hover {
+            background-color: #0c5bbf;
         }
 
         .guide-section {
@@ -108,55 +116,74 @@
             color: #555;
             margin-bottom: 8px;
         }
+
+        .footer {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            text-align: left;
+            font-size: 1.1em;
+            color: #777;
+        }
+
+        .footer a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 
 <body>
 
     <div class="container">
-        <h1>Welcome to convexAI Conversational AI Chatbot App!</h1>
-        <p>Enhance your Shopify store with our powerful convexAI Conversational AI Chatbot app. Improve navigation,
-            boost user engagement, and
-            provide a seamless shopping experience with our easy-to-install solution.</p>
+        <h1>Welcome to Your App!</h1>
+        <p>You can install and start using the app on your Shopify store. Follow the instructions to continue.</p>
 
         <!-- Install Button -->
         <button id="redirectButton" class="cta-button">Get Started</button>
+
+        <!-- Login Section -->
+        <div class="login-box">
+            <h3>Already have an account?</h3>
+            <p>Click below to access your dashboard.</p>
+            <a href="/login">Login</a>
+        </div>
     </div>
+
     <!-- Guide Section -->
     <div class="guide-section">
-        <h2>How to Install and Use the convexAI Conversational AI Chatbot App</h2>
-        <p>Follow the steps below to install and start using the AI Chatbot App on your Shopify store.</p>
+        <h2>Installation Guide</h2>
+        <p>Follow these steps to install and use the app.</p>
 
         <ul>
-            <li><strong>Step 1:</strong> Sign in to your Shopify store through the Admin Panel.</li>
-            <li><strong>Step 2:</strong> Click the "Get Started" button above to install the app.</li>
-            <li><strong>Step 3:</strong> Grant the necessary permissions for installation.</li>
-            <li><strong>Step 4:</strong> After installation, you will be redirected to the authentication page. Provide
-                your <strong>{{ shop.name }}</strong> store details for integration.</li>
-            <li><strong>Step 5:</strong> Configure and Train your AI Chatbot settings through the app's dashboard.</li>
-            <li><strong>Step 6:</strong> Customize the appearance, enable workflows, and save the changes.</li>
+            <li><strong>Step 1:</strong> Log in to your Shopify Admin.</li>
+            <li><strong>Step 2:</strong> Click “Get Started” above to install the app.</li>
+            <li><strong>Step 3:</strong> Approve the required permissions.</li>
+            <li><strong>Step 4:</strong> After installation, complete the authentication for your store.</li>
+            <li><strong>Step 5:</strong> Open the dashboard to configure your settings.</li>
         </ul>
 
-        <p><strong>How the AI Chatbot Works:</strong></p>
+        <p><strong>General Features:</strong></p>
         <ul>
-            <li>The chatbot appears on all pages as a chat bubble in the bottom-right corner of your site.</li>
-            <li>It can answer customer questions instantly, 24/7, improving user experience.</li>
-            <li>You can configure and train the chatbot from the app dashboard using your business-specific content.
-            </li>
-            <li>The chatbot helps improve conversion rates by guiding customers through products and services.</li>
+            <li>Easy installation.</li>
+            <li>User-friendly setup.</li>
+            <li>Customizable options.</li>
+            <li>Works smoothly across your store.</li>
         </ul>
     </div>
 
-
     <div class="footer">
-        <p>Have questions? <a href="mailto:info@convexai.io">Contact us</a></p>
+        <p>Need help? <a href="mailto:support@example.com">Contact support</a></p>
     </div>
 
     <script>
         document.getElementById('redirectButton').addEventListener('click', function () {
-            const shopName = "admin.shopify.com"; // Shopify Liquid variable to dynamically fetch shop name
-            // Redirect to the authentication URL with the shop parameter
-            window.location.href = `/auth?shop=${shopName}`; // Adjust the URL as per your app's requirements
+            const shopName = "admin.shopify.com";
+            window.location.href = `/auth?shop=${shopName}`;
         });
     </script>
 
