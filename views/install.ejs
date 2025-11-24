@@ -63,7 +63,6 @@
             background-color: #1a73e8;
         }
 
-        /* Login Section */
         .login-box {
             margin-top: 30px;
             padding: 25px;
@@ -154,7 +153,6 @@
         </div>
     </div>
 
-    <!-- Guide Section -->
     <div class="guide-section">
         <h2>Installation Guide</h2>
         <p>Follow these steps to install and use the app.</p>
@@ -163,16 +161,16 @@
             <li><strong>Step 1:</strong> Log in to your Shopify Admin.</li>
             <li><strong>Step 2:</strong> Click “Get Started” above to install the app.</li>
             <li><strong>Step 3:</strong> Approve the required permissions.</li>
-            <li><strong>Step 4:</strong> After installation, complete the authentication for your store.</li>
-            <li><strong>Step 5:</strong> Open the dashboard to configure your settings.</li>
+            <li><strong>Step 4:</strong> After installation, complete authentication.</li>
+            <li><strong>Step 5:</strong> Go to your dashboard.</li>
         </ul>
 
         <p><strong>General Features:</strong></p>
         <ul>
             <li>Easy installation.</li>
             <li>User-friendly setup.</li>
-            <li>Customizable options.</li>
-            <li>Works smoothly across your store.</li>
+            <li>Customizable settings.</li>
+            <li>Smooth integration with your Shopify store.</li>
         </ul>
     </div>
 
@@ -182,8 +180,15 @@
 
     <script>
         document.getElementById('redirectButton').addEventListener('click', function () {
-            const shopName = "admin.shopify.com";
-            window.location.href = `/auth?shop=${shopName}`;
+            // Ask store owner to enter shop URL
+            const shop = prompt("Enter your Shopify store URL (example: mystore.myshopify.com)");
+
+            if (!shop || !shop.includes(".myshopify.com")) {
+                alert("Please enter a valid store like: mystore.myshopify.com");
+                return;
+            }
+
+            window.location.href = `/auth?shop=${shop}`;
         });
     </script>
 
