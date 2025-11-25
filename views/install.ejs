@@ -1,10 +1,46 @@
-document.getElementById('redirectButton').addEventListener('click', function () {
-    const shop = prompt("Enter your store: mystore.myshopify.com");
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loginby App Installation</title>
+</head>
+<body>
+    <h2>Login to Your Shopify Store</h2>
 
-    if (!shop || !shop.includes(".myshopify.com")) {
-        alert("Enter a valid store URL.");
-        return;
-    }
+    <!-- Button to redirect to /auth -->
+    <button id="redirectButton">Login to Shopify</button>
 
-    window.location.href = `/auth?shop=${shop}`;
-});
+    <script>
+        document.getElementById('redirectButton').addEventListener('click', function () {
+            const input = prompt("Enter your Shopify store (store name or admin URL):");
+
+            if (!input) {
+                alert("Please enter a valid store name or URL.");
+                return;
+            }
+
+            let storeName;
+
+            // Extract store name if admin URL is pasted
+            const match = input.match(/store\/([a-zA-Z0-9-]+)/);
+            if (match && match[1]) {
+                storeName = match[1];
+            } else {
+                // Otherwise, assume the user entered the store name directly
+                storeName = input.trim();
+            }
+
+            if (!storeName) {
+                alert("Could not detect your store. Please enter the store name or full admin URL.");
+                return;
+            }
+
+            // Build the full shop domain
+            const shopDomain = `${storeName}.myshopify.com`;
+
+            // Redirect to your app's /auth route with shop parameter
+            window.location.href = `/auth?shop=${encodeURIComponent(shopDomain)}`;
+        });
+    </script>
+</body>
+</html>
