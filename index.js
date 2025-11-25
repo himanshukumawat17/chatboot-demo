@@ -16,7 +16,13 @@ const SHOPIFY_SCOPE =
   'read_themes,write_themes,read_products,write_products,read_script_tags,write_script_tags'
 const SHOPIFY_REDIRECT_URI = process.env.SHOPIFY_REDIRECT_URI
 
-app.use(cors())
+app.use(
+  cors({
+    origin: '*',
+    methods: 'GET,POST,PUT,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type,Authorization,X-Shopify-Access-Token'
+  })
+)
 app.use(express.static('public'))
 app.use(bodyParser.json())
 app.set('view engine', 'ejs')
